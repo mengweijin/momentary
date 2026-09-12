@@ -1,0 +1,71 @@
+<template>
+	<uni-tab :active-index="activeIndex" @change="handleChange">
+		<!-- 内容区域 -->
+		<uni-tab-content>
+			<tab-home />
+		</uni-tab-content>
+		<uni-tab-content>
+			<tab-photo />
+		</uni-tab-content>
+		<uni-tab-content>
+			<tab-music />
+		</uni-tab-content>
+		<uni-tab-content>
+			<tab-file />
+		</uni-tab-content>
+<uni-tab-content>
+			<tab-mine />
+		</uni-tab-content>
+		<!-- 底部选项卡 -->
+		<uni-tab-bar>
+			<uni-tab-item>
+				<text>首页</text>
+			</uni-tab-item>
+			<uni-tab-item>
+				<text>照片</text>
+			</uni-tab-item>
+			<uni-tab-item>
+				<text>音乐</text>
+			</uni-tab-item>
+			<uni-tab-item>
+				<text>文件</text>
+			</uni-tab-item>
+			<uni-tab-item>
+				<text>我的</text>
+			</uni-tab-item>
+		</uni-tab-bar>
+	</uni-tab>
+</template>
+
+<script setup>
+	import { ref } from 'vue';
+
+	// 当前选中下标
+	const activeIndex = ref(0)
+
+	// 处理 tab 的切换
+	function handleChange(index : number) : void {
+		activeIndex.value = index;
+		switch (index) {
+			case 0:
+				uni.setNavigationBarTitle({ title: '首页' })
+				break
+			case 1:
+				uni.setNavigationBarTitle({ title: '照片' })
+				break
+			case 2:
+				uni.setNavigationBarTitle({ title: '音乐' })
+				break
+			case 3:
+				uni.setNavigationBarTitle({ title: '文件' })
+				break
+			case 4:
+				uni.setNavigationBarTitle({ title: '我的' })
+				break
+		}
+	}
+</script>
+
+<style lang="scss">
+
+</style>

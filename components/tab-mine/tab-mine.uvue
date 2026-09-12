@@ -1,0 +1,30 @@
+<template>
+	<view class="mmty-button-list">
+		<button class="mmty-button">webdav</button>
+		<button class="mmty-button">清理缓存</button>
+		<button class="mmty-button">软件主页</button>
+		<button class="mmty-button">软件协议</button>
+		<button class="mmty-button">版本</button>
+	</view>
+</template>
+
+<script setup>
+
+</script>
+
+<style lang="scss">
+.mmty-button-list {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	padding: 10px 10px 0px 10px;
+}
+
+.mmty-button {
+	// border-radius: 0;
+
+	// &::after {
+	// 	border-radius: inherit;
+	// }
+}
+</style>
