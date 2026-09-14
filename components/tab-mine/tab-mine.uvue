@@ -1,30 +1,47 @@
 <template>
-	<view class="mmty-button-list">
-		<button class="mmty-button">webdav</button>
-		<button class="mmty-button">清理缓存</button>
-		<button class="mmty-button">软件主页</button>
-		<button class="mmty-button">软件协议</button>
-		<button class="mmty-button">版本</button>
+	<view>
+		<up-list>
+			<up-list-item>
+				<up-cell title="webdav" value="">
+					<template #right-icon>
+						配置
+					</template>
+				</up-cell>
+			</up-list-item>
+			<up-list-item>
+				<up-cell title="软件名称" :value="appName"></up-cell>
+			</up-list-item>
+			<up-list-item>
+				<up-cell title="软件协议" value="Apache 2.0"></up-cell>
+			</up-list-item>
+			<up-list-item>
+				<up-cell title="版本" :value="appVersion"></up-cell>
+			</up-list-item>
+			<up-list-item>
+				<up-cell title="代码仓库" value="">
+					<template #right-icon>
+						<up-link href="https://gitee.com/mengweijin/momentary" text="https://gitee.com/mengweijin/momentary" :under-line="true"></up-link>
+					</template>
+				</up-cell>
+			</up-list-item>
+		</up-list>
 	</view>
 </template>
 
 <script setup>
+	import { ref } from 'vue';
+	const appName = ref('');
+	const appVersion = ref('');
 
+	onLoad(() => {
+		// 同步获取应用基础信息
+		const appInfo = uni.getAppBaseInfo();
+		// 用 ! 告诉编译器忽略 null 检查。否则 PC 端正常，安卓端编译报错
+		appName.value = appInfo.appName!;
+		appVersion.value = appInfo.appVersion!;
+	});
 </script>
 
 <style lang="scss">
-.mmty-button-list {
-	display: flex;
-	flex-direction: column;
-	gap: 3px;
-	padding: 10px 10px 0px 10px;
-}
 
-.mmty-button {
-	// border-radius: 0;
-
-	// &::after {
-	// 	border-radius: inherit;
-	// }
-}
 </style>

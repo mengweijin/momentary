@@ -1,68 +1,77 @@
 <template>
-	<uni-tab :active-index="activeIndex" @change="handleChange">
-		<!-- 内容区域 -->
-		<uni-tab-content>
-			<tab-home />
-		</uni-tab-content>
-		<uni-tab-content>
-			<tab-photo />
-		</uni-tab-content>
-		<uni-tab-content>
-			<tab-music />
-		</uni-tab-content>
-		<uni-tab-content>
-			<tab-file />
-		</uni-tab-content>
-<uni-tab-content>
-			<tab-mine />
-		</uni-tab-content>
-		<!-- 底部选项卡 -->
-		<uni-tab-bar>
-			<uni-tab-item>
-				<text>首页</text>
-			</uni-tab-item>
-			<uni-tab-item>
-				<text>照片</text>
-			</uni-tab-item>
-			<uni-tab-item>
-				<text>音乐</text>
-			</uni-tab-item>
-			<uni-tab-item>
-				<text>文件</text>
-			</uni-tab-item>
-			<uni-tab-item>
-				<text>我的</text>
-			</uni-tab-item>
-		</uni-tab-bar>
-	</uni-tab>
+	<view>
+		<tab-home v-if="tabName === 'home'" />
+		<tab-photo v-if="tabName === 'photo'" />
+		<tab-music v-if="tabName === 'music'" />
+		<tab-file v-if="tabName === 'file'" />
+		<tab-mine v-if="tabName === 'mine'" />
+	</view>
+	<up-tabbar :value="tabName" @change="(name: string) => onTabChange(name)" :fixed="true" :border="true"
+		:placeholder="false" :safeAreaInsetBottom="false">
+		<template v-for="item in tabbarData">
+			<up-tabbar-item :name="item.name" :text="item.text" :icon="item.icon"
+				@click="item.onClick(item)"></up-tabbar-item>
+		</template>
+	</up-tabbar>
 </template>
 
 <script setup>
 	import { ref } from 'vue';
+	const tabName = ref('home');
+	
+	type TabbarData = {
+	  name: string,
+	  text: string,
+	  icon: string,
+	  onClick: (item: TabbarData) => void,
+	}
 
-	// 当前选中下标
-	const activeIndex = ref(0)
+	const tabbarData = ref<Array<TabbarData>>([
+		{
+
+			name: "home",
+			text: "首页",
+			icon: "home",
+			onClick: (item : TabbarData) => { console.log(item.name); },
+		},
+		{
+			name: "photo",
+			text: "照片",
+			icon: "photo",
+			onClick: (item : TabbarData) => { console.log(item.name); },
+		},
+		{
+			name: "music",
+			text: "音乐",
+			icon: "play-right",
+			onClick: (item : TabbarData) => { console.log(item.name); },
+		},
+		{
+			name: "file",
+			text: "文件",
+			icon: "file-text",
+			onClick: (item : TabbarData) => { console.log(item.name); },
+		},
+		{
+			name: "mine",
+			text: "我的",
+			icon: "account",
+			onClick: (item : TabbarData) => { console.log(item.name); },
+		}
+	]);
 
 	// 处理 tab 的切换
-	function handleChange(index : number) : void {
-		activeIndex.value = index;
-		switch (index) {
-			case 0:
-				uni.setNavigationBarTitle({ title: '首页' })
-				break
-			case 1:
-				uni.setNavigationBarTitle({ title: '照片' })
-				break
-			case 2:
-				uni.setNavigationBarTitle({ title: '音乐' })
-				break
-			case 3:
-				uni.setNavigationBarTitle({ title: '文件' })
-				break
-			case 4:
-				uni.setNavigationBarTitle({ title: '我的' })
-				break
-		}
+	const setNavigationBarTitle = (name : string) => {
+		tabbarData.value.forEach((item : TabbarData) => {
+			if (item.name === name) {
+				uni.setNavigationBarTitle({ title: item.text });
+			}
+		});
+	}
+	
+	const onTabChange = (name: string) => {
+		tabName.value = name;
+		setNavigationBarTitle(name);
 	}
 </script>
 
