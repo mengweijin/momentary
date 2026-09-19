@@ -1,0 +1,34 @@
+import { useStore } from '@/uni_modules/vt-file-store/composables/use-store'
+import type { S3Config } from '@/uni_modules/vt-aws-s3/utssdk/interface.uts'
+
+export type OssPath = {
+	photo : string
+	music : string
+	video : string
+}
+export type OssConfig = {
+	s3 : S3Config,
+	path : OssPath
+}
+
+export const defaultConfig : OssConfig = {
+	s3: {
+		endpoint: 'http://127.0.0.1:9000',
+		accessKey: '',
+		secretKey: '',
+		bucket: 'momentary',
+		region: 'auto',
+		sessionToken: ''
+	},
+	path: {
+		photo: '/photo',
+		music: '/music',
+		video: '/video'
+	}
+}
+
+export const ossData: Ref<OssConfig> = useStore('oss.json', defaultConfig);
+
+export const resetOssConfig = () => {
+	ossData.value = defaultConfig;
+};

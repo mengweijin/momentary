@@ -1,0 +1,17 @@
+{
+  "deploymentTarget": "13.0",
+  "dependencies-pods": [
+    {
+      "name": "AWSS3",
+      "version": "2.41.0"
+    },
+    {
+      "name": "AWSCore",
+      "version": "2.41.0"
+    }
+  ],
+  "frameworks": [
+    "Foundation",
+    "UIKit"
+  ]
+}

@@ -1,3 +1,36 @@
+## 4.5.42
+fix: 修复签名组件在 App 端无法绘制、笔迹闪退，并补齐 up-canvas 画布能力
+
+up-signature 在 App 端存在无法落笔、笔迹一闪即消失与落点偏移的问题；同时 up-canvas 相比 3.x 缺少画布就绪事件与禁止滚动属性，业务组件无法对齐使用。
+
+- up-canvas 补齐 ready 事件：初始化完成后回调（携带宽高），与 3.x u-canvas 对齐，业务组件可在画布就绪后再响应绘制
+- up-canvas 补齐 disable-scroll 属性并透传到 canvas 节点
+- up-signature（Vue 与 uvue 两条实现）改为等待画布就绪后再接受绘制，修复上下文异步就绪时首笔丢失
+- 修复笔迹画出后立即消失：touchMove 改为「增量线段」绘制（beginPath + moveTo 上一点 + lineTo 当前点 + stroke）并使用 draw(true) 保留已绘制内容，不再每次 draw(false) 清空命令队列
+- 修复 App 端坐标错乱、笔迹落到画布外：触摸坐标减去画布位置换算到画布坐标系（Vue 端优先取画布相对坐标）
+- 收尾不再 closePath，避免手写笔迹出现回连直线；撤销回放逻辑保持兼容
+- 覆盖 APP-PLUS / APP-HARMONY / uni-app-x / NVUE，微信小程序与 H5 行为保持不变
+
+## 4.5.41
+fix: App 端图标字体改用 static 本地字体，新增通用 Vite 插件入口 UpVite
+
+up-icon 的 Vue 运行时（App-vue / App-nvue）一直通过 import iconFontUrl from './upicon.ttf?url' 加载字体。这条路径在 iOS App 端不生效——App 本地字体必须落在 uni-app 约定的 static 目录下，否则图标不显示。uview-plus 已经修正过同一个问题（?url 改为 static），uview-ultra 当时对齐的是修正前的版本，没有跟进。uvue 路径本身早已使用 /static/iconfont/iconfont.ttf，本次只调整 Vue 路径。
+
+- 新增通用 Vite 插件入口 UpVite（uni_modules/uview-ultra/libs/vite/index.js）。App 构建时把 components/up-icon/upicon.ttf 复制到 static/app-plus/uview-ultra/，并兜底移除已编译进产物的远程 @font-face，避免本地字体与远程字体同时加载
+- 本地图标字体是 UpVite 的第一个 feature，后续组件库新增构建期能力只需在插件内追加，业务项目不需要再改自己的 vite.config
+- App / App-nvue 默认优先加载本地字体；App-Vue 在 uni.loadFontFace 失败后回退 config.iconUrl（每个页面只回退一次），App-nvue 因 dom.addRule 没有失败回调、注册前用 plus.io.resolveLocalFileSystemURL 探测字体文件
+- up-icon.vue 的 App Vue 字体注册时机改到 onMounted：页面未挂载时取不到 getCurrentPages()，原先在 setup 时机注册会被直接跳过
+- util.js 新增 App Vue 页面级加载状态并导出 isLoaded
+- 新增 verify:app-local-icon-font 回归校验
+- 未注册插件的项目会回退 config.iconUrl，行为与改造前等价，升级不会丢图标；不希望使用本地字体可传 UpVite({ appStaticIconFont: false })
+- uvue / uni-app-x、H5、小程序均不受影响
+
+## 4.5.40
+fix: 修复 up-row-notice 横向滚动空格丢失
+
+- 修复文本按 20 个字符切分后，空格落在独立 text 节点首尾时被 nowrap 折叠的问题；Vue 与 UVue 两端均保留原文空白且不换行。
+- 新增 verify:row-notice-space 回归校验，覆盖空格位于第二个 text 节点首部的边界场景。
+
 ## 4.5.39
 fix: 修复 up-button 零延迟节流锁死，补齐组件类型导出
 

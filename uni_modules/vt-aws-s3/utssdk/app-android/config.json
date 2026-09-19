@@ -1,0 +1,14 @@
+{
+	"minSdkVersion": "21",
+	"dependencies": [
+		"com.amazonaws:aws-android-sdk-core:2.81.0",
+		"com.amazonaws:aws-android-sdk-s3:2.81.0",
+		"com.amazonaws:aws-android-sdk-s3-transfer-utility:2.81.0"
+	],
+	"permissions": [
+		"android.permission.INTERNET",
+		"android.permission.ACCESS_NETWORK_STATE",
+		"android.permission.READ_EXTERNAL_STORAGE",
+		"android.permission.WRITE_EXTERNAL_STORAGE"
+	]
+}

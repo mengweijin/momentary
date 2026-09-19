@@ -1,11 +1,13 @@
 {
-	"name": "momentary",
+	"name": "时光盒",
 	"appid": "__UNI__22A5BBB",
 	"description": "",
 	"versionName": "1.0.0",
-	"versionCode": "100",
+	"versionCode": "104",
 	"uni-app-x": {
-		"styleIsolationVersion": "2"
+		"styleIsolationVersion": "2",
+		"vapor": true,
+		"vapor-render-target": "bytecode"
 	},
 	"quickapp": {},
 	"mp-weixin": {

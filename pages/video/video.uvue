@@ -1,0 +1,20 @@
+<template>
+	<!-- #ifdef APP -->
+	<scroll-view style="flex:1">
+	<!-- #endif -->
+		<view>
+			<nax-empty title="视频"></nax-empty>
+		</view>
+	<!-- #ifdef APP -->
+	</scroll-view>
+	<!-- #endif -->
+	<mo-tabbar currentName="video" />
+</template>
+
+<script setup>
+
+</script>
+
+<style lang="scss">
+
+</style>

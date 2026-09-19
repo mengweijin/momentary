@@ -1,0 +1,25 @@
+<template>
+	<!-- #ifdef APP -->
+	<scroll-view style="flex:1">
+	<!-- #endif -->
+		<view>
+			<nax-empty title="照片"></nax-empty>
+		</view>
+	<!-- #ifdef APP -->
+	</scroll-view>
+	<!-- #endif -->
+
+	<mo-tabbar currentName="photo" />
+</template>
+
+<script setup>
+	const loading = ref(true);
+
+	setTimeout(() => {
+		loading.value = false
+	}, 500)
+</script>
+
+<style lang="scss">
+
+</style>

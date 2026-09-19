@@ -1,0 +1,47 @@
+/**
+ * useStore — 响应式 uni-app-x store 组合式函数：返回与用户配置文件双向绑定的 Ref，改值即写文件内容。
+ *
+ * 用法（必须在 setup 内同步调用）：
+ * ```
+ * import { useStore } from '@/uni_modules/vt-file-store/composables/use-store.uts'
+ *
+ * const user = useStore('user.json', { username: 'Tom', age: 12})
+ * // 自动写入文件
+ * user.value = { username: 'Jack', age: 24}
+ * user.value.username = 'Jerry';
+ * // 置 null 即删除该文件
+ * user.value = null      
+ * ```
+ *
+ * 说明：
+ * - content 不存在时返回 defaultValue 并立即持久化，保证下次创建直接读到
+ * - 相同 fileName 的多个实例各自持有独立 Ref，但引用同一份文件，因此值可以联动
+ */
+import { ref, watchEffect, Ref } from 'vue'
+import { load, save, clear } from '@/uni_modules/vt-file-store'
+
+export function useStore(fileName : string, defaultValue : any) : Ref<any> {
+	let init : any = defaultValue;
+	let content : string | null = load(fileName)
+	if (content == null || content == '') {
+		init = isString(defaultValue) ? defaultValue : JSON.stringify(defaultValue);
+		save(fileName, init);
+	} else {
+		init = isString(defaultValue) ? content : JSON.parse(content);
+	}
+
+	const state = ref<any>(init);
+	watchEffect(() => {
+		const data = state.value;
+		if (data == null) {
+			clear(fileName);
+			return;
+		}
+		save(fileName, isString(data) ? data : JSON.stringify(data));
+	})
+	return state;
+}
+
+function isString(v : any) : boolean {
+	return typeof v === "string"
+}

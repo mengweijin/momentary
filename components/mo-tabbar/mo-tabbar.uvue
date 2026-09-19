@@ -1,0 +1,87 @@
+<template>
+	<up-tabbar :value="props.currentName" @change="onTabChange" fixed border placeholder
+		safeAreaInsetBottom>
+		<up-tabbar-item name="index" text="首页">
+			<template #active-icon>
+				<rice-icon name="home" size="22" color="#1989fa"></rice-icon>
+			</template>
+			<template #inactive-icon>
+				<rice-icon name="home" size="22" color="#7d7e80"></rice-icon>
+			</template>
+		</up-tabbar-item>
+		<up-tabbar-item name="photo" text="照片">
+			<template #active-icon>
+				<rice-icon name="photo" size="22" color="#1989fa"></rice-icon>
+			</template>
+			<template #inactive-icon>
+				<rice-icon name="photo" size="22" color="#7d7e80"></rice-icon>
+			</template>
+		</up-tabbar-item>
+		<up-tabbar-item name="music" text="音乐">
+			<template #active-icon>
+				<rice-icon font-family="icon-momentary" name="e7c1" size="22" color="#1989fa"></rice-icon>
+			</template>
+			<template #inactive-icon>
+				<rice-icon font-family="icon-momentary" name="e7c1" size="22" color="#7d7e80"></rice-icon>
+			</template>
+		</up-tabbar-item>
+		<up-tabbar-item name="video" text="视频">
+			<template #active-icon>
+				<rice-icon font-family="icon-momentary" name="e720" size="22" color="#1989fa"></rice-icon>
+			</template>
+			<template #inactive-icon>
+				<rice-icon font-family="icon-momentary" name="e720" size="22" color="#7d7e80"></rice-icon>
+			</template>
+		</up-tabbar-item>
+		<up-tabbar-item name="mine" text="我的">
+			<template #active-icon>
+				<rice-icon name="user" size="22" color="#1989fa"></rice-icon>
+			</template>
+			<template #inactive-icon>
+				<rice-icon name="user" size="22" color="#7d7e80"></rice-icon>
+			</template>
+		</up-tabbar-item>
+	</up-tabbar>
+</template>
+
+<script setup lang="uts">
+	defineOptions({
+		styleIsolation: "app"
+	})
+
+	const props = defineProps<{
+		currentName : string
+	}>();
+
+	// name 和页面路径映射，路径必须和 pages.json 的 pagePath 完全一致
+	const pageMap = new Map<string, string>([
+		['index', '/pages/index/index'],
+		['photo', '/pages/photo/photo'],
+		['music', '/pages/music/music'],
+		['video', '/pages/video/video'],
+		['mine', '/pages/mine/mine']
+	])
+
+	const onTabChange = (name : string) => {
+		// 点击当前激活tab，直接return，不跳转
+		if (name === props.currentName) {
+			return;
+		}
+		const url = pageMap.get(name);
+		if (url != null) {
+			uni.reLaunch({ url: url });
+		}
+	}
+</script>
+
+<style lang="scss">
+	.mom-tabbar-icon {
+		font-size: 20px;
+		// 默认（inactive）颜色
+		color: #7d7e80;
+
+		&.is-active {
+			color: #1989fa;
+		}
+	}
+</style>

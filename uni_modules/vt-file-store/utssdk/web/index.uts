@@ -1,0 +1,25 @@
+// utssdk/web/index.uts
+// Web (H5) 平台实现：localStorage，用 DIR_NAME 作为 key 前缀模拟目录结构
+
+import { DIR_NAME } from '../const.uts'
+
+// 用 DIR_NAME 作为前缀，模拟 vt-file-store 目录
+const PREFIX = DIR_NAME + ':'
+
+function getKey(fileName : string) : string {
+	return PREFIX + fileName
+}
+
+export function load(fileName : string) : string | null {
+	return localStorage.getItem(getKey(fileName))
+}
+
+export function save(fileName : string, content : string) : void {
+	// setItem 在 key 不存在时会自动创建
+	localStorage.setItem(getKey(fileName), content)
+}
+
+export function clear(fileName : string) : void {
+	localStorage.removeItem(getKey(fileName))
+}
+

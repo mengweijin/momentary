@@ -1,0 +1,99 @@
+{
+	"id": "vt-aws-s3",
+	"name": "vt-aws-s3",
+	"displayName": "AWS S3 协议插件",
+	"version": "1.0.0",
+	"description": "调用 AWS S3 协议接口（Web + Android + iOS + HarmonyOS）",
+	"keywords": [
+		"vt-aws-s3", "S3", "AWS", "UTS插件", "对象存储", "OSS"
+	],
+	"repository": "",
+	"engines": {
+		"HBuilderX": "^3.6.8",
+		"uni-app": "^3.1.0",
+		"uni-app-x": "^3.1.0"
+	},
+	"dcloudext": {
+		"type": "uts",
+		"sale": {
+			"regular": {
+				"price": "0.00"
+			},
+			"sourcecode": {
+				"price": "0.00"
+			}
+		},
+		"contact": {
+			"qq": ""
+		},
+		"declaration": {
+			"ads": "",
+			"data": "",
+			"permissions": ""
+		},
+		"npmurl": "",
+		"darkmode": "-",
+		"i18n": "-",
+		"widescreen": "-"
+	},
+	"uni_modules": {
+		"dependencies": [],
+		"encrypt": [],
+		"platforms": {
+			"cloud": {
+				"tcb": "n",
+				"aliyun": "n",
+				"alipay": "n"
+			},
+			"client": {
+				"uni-app": {
+					"vue": {
+						"vue2": "n",
+						"vue3": "y"
+					},
+					"web": {
+						"safari": "y",
+						"chrome": "y"
+					},
+					"app": {
+						"vue": "n",
+						"nvue": "n",
+						"android": "y",
+						"ios": "y",
+						"harmony": "y"
+					},
+					"mp": {
+						"weixin": "n",
+						"alipay": "n",
+						"toutiao": "n",
+						"baidu": "n",
+						"kuaishou": "n",
+						"jd": "n",
+						"harmony": "n",
+						"qq": "n",
+						"lark": "n",
+						"xhs": "n"
+					},
+					"quickapp": {
+						"huawei": "n",
+						"union": "n"
+					}
+				},
+				"uni-app-x": {
+					"web": {
+						"safari": "y",
+						"chrome": "y"
+					},
+					"app": {
+						"android": "y",
+						"ios": "y",
+						"harmony": "y"
+					},
+					"mp": {
+						"weixin": "n"
+					}
+				}
+			}
+		}
+	}
+}

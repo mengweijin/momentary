@@ -1,0 +1,9 @@
+// utssdk/const.uts
+// 所有平台共享的公共常量
+
+/**
+ * 统一存放目录名
+ * - App / 小程序端：作为 USER_DATA_PATH 下的子目录名
+ * - Web 端：作为 localStorage key 的前缀
+ */
+export const DIR_NAME = 'vt-file-store'

@@ -40,15 +40,20 @@
 </script>
 
 <style lang="scss">
-	/* 注意要写在第一行，注意不能引入至uni.scss，同时给style标签加入lang="scss"属性 */
+	/* 导入 uview-ultra */
 	@import "@/uni_modules/uview-ultra/index.scss";
+	/* 导入 rice-ui */
+	@import "@/uni_modules/rice-ui/libs/style/index.css";
 
-	/** 加载字体图标 */
-	@font-face {
-		font-family: iconfont;
-		src: url('/static/icons/font_2225171_8kdcwk4po24.ttf') format('truetype');
-	}
-
+	/**
+	 * 使用 <rice-icon> 组件加载 iconfont 字体图标。
+	 * https://riceui.cn/components/icon.html
+	 */
+   @font-face {
+     font-family: "icon-momentary";
+     src: url('@/static/fonts/iconfont.ttf') format('truetype');
+   }
+   
 	/*每个页面公共css */
 	.uni-row {
 		flex-direction: row;
