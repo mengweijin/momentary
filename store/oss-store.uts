@@ -17,8 +17,8 @@ export const defaultConfig : OssConfig = {
 		accessKey: '',
 		secretKey: '',
 		bucket: 'momentary',
-		region: 'auto',
-		sessionToken: ''
+		region: 'cn-north-1',
+		forcePathStyle: true
 	},
 	path: {
 		photo: '/photo',

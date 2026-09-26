@@ -3,11 +3,9 @@
 	"appid": "__UNI__22A5BBB",
 	"description": "",
 	"versionName": "1.0.0",
-	"versionCode": "104",
+	"versionCode": "112",
 	"uni-app-x": {
-		"styleIsolationVersion": "2",
-		"vapor": true,
-		"vapor-render-target": "bytecode"
+		"styleIsolationVersion": "2"
 	},
 	"quickapp": {},
 	"mp-weixin": {
@@ -57,7 +55,10 @@
 			},
 			"splashScreens": {
 				"default": {}
-			}
+			},
+			"permissions": [
+				"<queries><intent><action android:name=\"android.intent.action.VIEW\"/><category android:name=\"android.intent.category.BROWSABLE\"/><data android:scheme=\"http\"/></intent><intent><action android:name=\"android.intent.action.VIEW\"/><category android:name=\"android.intent.category.BROWSABLE\"/><data android:scheme=\"https\"/></intent></queries>"
+			]
 		}
 	},
 	"app-ios": {

@@ -19,17 +19,22 @@
 			</rice-cell>
 			<rice-cell title="软件协议">
 				<template #rightIcon>
-					<rice-text text="Apache License 2.0" decoration="underline" type="primary"
-						@click="onLicenseClick" />
+					<uni-link href="https://github.com/mengweijin/momentary/blob/master/LICENSE" target="_blank">
+						Apache License 2.0
+					</uni-link>
 				</template>
 			</rice-cell>
 			<rice-cell title="软件版本" :value="appVersion"></rice-cell>
 			<rice-cell title="代码仓库">
 				<template #rightIcon>
-					<rice-icon font-family="icon-momentary" name="e628" size="24" color="gray"
-						@click="onGithubClick"></rice-icon>
-					<rice-icon font-family="icon-momentary" name="e602" size="24" color="red" style="margin-left: 10px;"
-						@click="onGiteeClick"></rice-icon>
+					<uni-link href="https://github.com/mengweijin/momentary" target="_blank"
+						style="text-decoration-line: none;">
+						<rice-icon font-family="icon-momentary" name="e628" size="24" color="gray"></rice-icon>
+					</uni-link>
+					<uni-link href="https://gitee.com/mengweijin/momentary" target="_blank"
+						style="text-decoration-line: none; margin-left: 10px;">
+						<rice-icon font-family="icon-momentary" name="e602" size="24" color="red"></rice-icon>
+					</uni-link>
 				</template>
 			</rice-cell>
 		</rice-cell-group>
@@ -44,34 +49,13 @@
 	import { ref } from 'vue';
 	import { openSchema } from '@/uni_modules/uts-openSchema';
 	import { ossData } from "@/store/oss-store.uts";
-	
+
 	const appName = ref('');
 	const appVersion = ref('');
-	
+
 	const ossEndpoint = computed(() => {
 		return ossData.value?.s3?.endpoint;
 	});
-
-	const onLicenseClick = () => {
-		// #ifdef UNI-APP-X
-		// 使用外部浏览器打开指定URL
-		openSchema('https://github.com/mengweijin/momentary/blob/master/LICENSE')
-		// #endif
-	}
-
-	const onGiteeClick = () => {
-		// #ifdef UNI-APP-X
-		// 使用外部浏览器打开指定URL
-		openSchema('https://gitee.com/mengweijin/momentary')
-		// #endif
-	}
-
-	const onGithubClick = () => {
-		// #ifdef UNI-APP-X
-		// 使用外部浏览器打开指定URL
-		openSchema('https://github.com/mengweijin/momentary')
-		// #endif
-	}
 
 	onLoad(() => {
 		// 同步获取应用基础信息
