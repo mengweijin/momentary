@@ -1,5 +1,0 @@
-export type SkeletonItemProps = {
-  type ?: 'p' | 'circle' | 'rect' | 'image'
-  imageIconSize ?: number | string
-
-}

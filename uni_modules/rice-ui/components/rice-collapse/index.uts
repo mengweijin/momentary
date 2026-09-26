@@ -1,3 +1,0 @@
-import { getRandomStr } from "../../libs/utils"
-export * from "./type"
-export const collapseInjectKey = `CollapseKey-${getRandomStr()}`

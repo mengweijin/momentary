@@ -1,5 +1,0 @@
-export type ColProps = {
-	span ?: number,
-	offset ?: number,
-	customStyle ?: UTSJSONObject
-}
