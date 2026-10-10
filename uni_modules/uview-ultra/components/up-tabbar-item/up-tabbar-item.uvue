@@ -197,7 +197,8 @@
 
 	const iconColor = computed((): string => {
 		const color = isActive.value ? parentData.value['activeColor'] : parentData.value['inactiveColor']
-		return color != null ? color.toString() : ''
+		const resolvedColor = color != null ? color.toString() : ''
+		return resolvedColor.length > 0 ? resolvedColor : (isActive.value ? '#1989fa' : '#7d7e80')
 	})
 
 	const resolvedMidButtonIconColor = computed((): string => {

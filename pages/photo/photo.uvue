@@ -2,8 +2,38 @@
 	<!-- #ifdef APP -->
 	<scroll-view style="flex:1">
 	<!-- #endif -->
-		<view>
-			<nax-empty title="照片"></nax-empty>
+		<view class="mo-photo-page">
+			<view class="mo-photo-heading">
+				<text class="mo-photo-title">照片</text>
+				<text class="mo-photo-count">{{ photos.length }} 张照片</text>
+			</view>
+
+			<view v-if="isLoading && photos.length == 0" class="mo-photo-state">
+				<text class="mo-photo-state-text">正在读取照片…</text>
+			</view>
+			<nax-empty v-else-if="loadError.length > 0" title="照片加载失败" :description="loadError">
+				<template #action>
+					<rice-button type="primary" text="重试" size="small" @click="loadPhotos" />
+				</template>
+			</nax-empty>
+			<nax-empty v-else-if="!isLoading && photos.length == 0" title="暂无照片"
+				description="OSS 照片目录中还没有图片" />
+
+			<template v-else>
+				<text v-if="previewWarning.length > 0" class="mo-photo-warning">{{ previewWarning }}</text>
+				<rice-cell-group border>
+					<rice-cell v-for="photo in photos" :key="photo.key" :title="photo.name"
+						:label="formatPhotoSize(photo.size)" center :clickable="false">
+						<template #leftIcon>
+							<rice-image v-if="photo.imagePath.length > 0" :src="photo.imagePath" width="60" height="60"
+								radius="8px" mode="aspectFit" :preview="true" :custom-style="{ 'margin-right': '10px' }" />
+							<view v-else class="mo-photo-placeholder" style="margin-right: 10px">
+								<rice-icon name="photo" size="24px" color="#8ca0bd" />
+							</view>
+						</template>
+					</rice-cell>
+				</rice-cell-group>
+			</template>
 		</view>
 	<!-- #ifdef APP -->
 	</scroll-view>
@@ -13,14 +43,146 @@
 </template>
 
 <script setup>
-	import { initS3, listObjects, getObject, deleteObject } from '@/uni_modules/vt-s3-api';
-	const loading = ref(true);
+	import { ref } from 'vue';
+	import { init, isInited, ossData } from '@/storage/oss-storage.uts';
+	import { getObject, listObjects } from '@/uni_modules/vt-s3-api';
 
-	setTimeout(() => {
-		loading.value = false
-	}, 5000)
+	type PhotoItem = {
+		key: string,
+		name: string,
+		size: number,
+		imagePath: string
+	}
+
+	const photos = ref<PhotoItem[]>([]);
+	const isLoading = ref<boolean>(false);
+	const loadError = ref<string>('');
+	const previewWarning = ref<string>('');
+
+	const formatPhotoSize = (size: number): string => {
+		if (size < 1024) return size.toString() + ' B';
+		if (size < 1024 * 1024) return (size / 1024).toFixed(1) + ' KB';
+		return (size / (1024 * 1024)).toFixed(1) + ' MB';
+	};
+
+	const getPreviewPath = (result: UTSJSONObject): string => {
+		const localPath = result.localPath;
+		if (localPath == null || localPath.length == 0) {
+			throw new Error('OSS 未返回图片本地缓存路径。');
+		}
+		return localPath.startsWith('/') ? 'file://' + localPath : localPath;
+	};
+
+	const loadPhotos = async () => {
+		if (isLoading.value) return;
+		isLoading.value = true;
+		loadError.value = '';
+		previewWarning.value = '';
+		try {
+			await init();
+			if (!isInited.value) {
+				throw new Error('OSS 初始化失败，请检查连接配置。');
+			}
+
+			const result = await listObjects(ossData.value.path.photo);
+			console.log(result)
+			const objects = result.objects;
+			if (objects == null) {
+				throw new Error('OSS 返回的照片列表格式无效。');
+			}
+
+			const photoList: PhotoItem[] = [];
+			for (let i = 0; i < objects.length; i++) {
+				const object = objects[i];
+				const key = object.key;
+				if (key == null || key.length == 0 || key.endsWith('/')) continue;
+				const size = object.size;
+				if (size == null) {
+					throw new Error('照片文件大小信息缺失：' + key);
+				}
+				const prefix = ossData.value.path.photo;
+				const name = key.startsWith(prefix) ? key.substring(prefix.length) : key;
+				photoList.push({
+					key: key,
+					name: name,
+					size: size,
+					imagePath: ''
+				});
+			}
+			photos.value = photoList;
+
+			let failedPreviews = 0;
+			for (let i = 0; i < photoList.length; i++) {
+				try {
+					const object = await getObject(photoList[i].key);
+					photos.value[i].imagePath = getPreviewPath(object);
+				} catch (error) {
+					failedPreviews++;
+					console.error('Failed to load photo preview: ' + photoList[i].key, error);
+				}
+			}
+			if (failedPreviews > 0) {
+				previewWarning.value = failedPreviews.toString() + ' 张照片预览加载失败';
+			}
+		} catch (error) {
+			console.error('Failed to load OSS photos.', error);
+			photos.value = [];
+			loadError.value = '无法读取 OSS 照片，请检查配置和网络后重试。';
+		} finally {
+			isLoading.value = false;
+		}
+	};
+
+	onShow(() => {
+		loadPhotos();
+	});
 </script>
 
 <style lang="scss">
+	.mo-photo-page {
+		padding: 18px 16px 24px;
+	}
 
+	.mo-photo-heading {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		padding: 4px 2px 16px;
+	}
+
+	.mo-photo-title {
+		color: #26364e;
+		font-size: 22px;
+		font-weight: 700;
+	}
+
+	.mo-photo-count {
+		color: #8793a5;
+		font-size: 13px;
+	}
+
+	.mo-photo-warning {
+		margin-bottom: 10px;
+		color: #b1813f;
+		font-size: 12px;
+	}
+
+	.mo-photo-state {
+		align-items: center;
+		padding: 42px 0;
+	}
+
+	.mo-photo-state-text {
+		color: #8793a5;
+		font-size: 13px;
+	}
+
+	.mo-photo-placeholder {
+		width: 60px;
+		height: 60px;
+		align-items: center;
+		justify-content: center;
+		border-radius: 8px;
+		background-color: #eef2f8;
+	}
 </style>

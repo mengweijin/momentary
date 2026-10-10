@@ -17,12 +17,15 @@
 			<rice-form-item name="bucket" label="Bucket：" required>
 				<rice-input v-model="form.s3.bucket" clearable placeholder="请输入 Bucket" border="none" />
 			</rice-form-item>
+			<rice-form-item name="region" label="Region：" required>
+				<rice-input v-model="form.s3.region" clearable placeholder="请输入 Region" border="none" />
+			</rice-form-item>
 
 			<rice-form-item name="photo" label="照片路径：">
 				<rice-input v-model="form.path.photo" clearable placeholder="例如：/photo" border="none">
 					<template #suffix>
 						<rice-icon name="info" size="18px" color="blue" :custom-style="{'margin-left':'10px'}"
-							@click="showToast(`全路径：${form.s3.endpoint}/${form.s3.bucket}${form.path.photo}`)">
+							@click="showToast(`全路径：${form.s3.endpoint}/${form.s3.bucket}/${form.path.photo}`)">
 						</rice-icon>
 					</template>
 				</rice-input>
@@ -31,7 +34,7 @@
 				<rice-input v-model="form.path.music" clearable placeholder="例如：/music" border="none">
 					<template #suffix>
 						<rice-icon name="info" size="18px" color="blue" :custom-style="{'margin-left':'10px'}"
-							@click="showToast(`全路径：${form.s3.endpoint}/${form.s3.bucket}${form.path.music}`)">
+							@click="showToast(`全路径：${form.s3.endpoint}/${form.s3.bucket}/${form.path.music}`)">
 						</rice-icon>
 					</template>
 				</rice-input>
@@ -40,7 +43,7 @@
 				<rice-input v-model="form.path.video" clearable placeholder="例如：/video" border="none">
 					<template #suffix>
 						<rice-icon name="info" size="18px" color="blue" :custom-style="{'margin-left':'10px'}"
-							@click="showToast(`全路径：${form.s3.endpoint}/${form.s3.bucket}${form.path.video}`)">
+							@click="showToast(`全路径：${form.s3.endpoint}/${form.s3.bucket}/${form.path.video}`)">
 						</rice-icon>
 					</template>
 				</rice-input>
@@ -60,8 +63,9 @@
 </template>
 
 <script setup>
-	import { type OssConfig, ossData as form, resetOssConfig } from "@/store/oss-store.uts"
+	import { type OssConfig, ossData as form, resetOssConfig } from "@/storage/oss-storage.uts"
 	import { naxToast as showNaxToast } from '@/uni_modules/nax-toast/index.uts'
+	import { init, ossData } from '@/storage/oss-storage.uts';
 
 	const formRef = ref<RiceFormComponentPublicInstance | null>(null);
 
@@ -81,6 +85,11 @@
 	const showToast = (title : string) => {
 		showNaxToast({ title: title, showIcon: false, type: 'info', duration: 3000, position: 'top' })
 	}
+	
+	onUnload(async () => {
+		// 退出该页面时强制重新初始化 s3 对象
+		await init(true);
+	});
 </script>
 
 <style lang="scss">

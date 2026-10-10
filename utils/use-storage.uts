@@ -1,0 +1,86 @@
+// utils/useStorage.ts
+import { ref, watch, type Ref } from 'vue'
+
+/** 模块级缓存：同一 key 在不同组件中共享同一个 ref，避免多份数据不一致 */
+const storageRefs = new Map<string, Ref<any>>()
+
+/**
+ * 基于 uni.setStorageSync 的持久化响应式存储
+ * - 改值即同步落盘（含对象深层属性修改）
+ * - 应用重启后数据不丢失
+ * - 同一 key 跨组件共享同一个 ref
+ *
+ * @param key          存储键（避免使用 uni_ / dcloud_ 等系统保留前缀）
+ * @param defaultValue 默认值（storage 中不存在时使用，并会写入一次）
+ */
+export function useStorage<T>(key: string, defaultValue: T): Ref<T> {
+  // 1. 命中缓存，直接复用，实现跨组件同步
+  const cached = storageRefs.get(key)
+  if (cached) return cached as Ref<T>
+
+  // 2. 初始化：从本地存储读取
+  const initialValue = readStorage<T>(key, defaultValue)
+  const state = ref(initialValue) as Ref<T>
+
+  // 3. 深度监听，flush: 'sync' 保证改值立即同步落盘
+  watch(
+    state,
+    (val) => writeStorage(key, val),
+    { deep: true, flush: 'sync' }
+  )
+
+  storageRefs.set(key, state)
+  return state
+}
+
+/** 删除某个 key 的持久化数据（已创建的 ref 不会被重置，需自行处理） */
+export function removeStorage(key: string) {
+  try {
+    uni.removeStorageSync(key)
+    storageRefs.delete(key)
+  } catch (e) {
+    console.error(`[useStorage] 删除 ${key} 失败`, e)
+  }
+}
+
+/* ---------------- 内部工具 ---------------- */
+
+function readStorage<T>(key: string, defaultValue: T): T {
+  try {
+    const raw = uni.getStorageSync(key)
+
+    // 未存储过：写入默认值并返回
+    if (raw === '' || raw === null || raw === undefined) {
+      if (defaultValue !== undefined) writeStorage(key, defaultValue)
+      return defaultValue
+    }
+
+    // 历史兼容：App 端 uni 自动序列化时可能直接返回对象
+    if (typeof raw !== 'string') return raw as T
+
+    // 统一按 JSON 解析
+    try {
+      return JSON.parse(raw) as T
+    } catch {
+      // 存的是纯字符串（非 JSON），原样返回
+      return raw as unknown as T
+    }
+  } catch (e) {
+    console.warn(`[useStorage] 读取 ${key} 失败，使用默认值`, e)
+    return defaultValue
+  }
+}
+
+function writeStorage(key: string, value: any) {
+  try {
+    // undefined / 函数 / Symbol 等无法序列化，直接移除该 key
+    const serialized = JSON.stringify(value)
+    if (serialized === undefined) {
+      uni.removeStorageSync(key)
+      return
+    }
+    uni.setStorageSync(key, serialized)
+  } catch (e) {
+    console.error(`[useStorage] 写入 ${key} 失败`, e)
+  }
+}

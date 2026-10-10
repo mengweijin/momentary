@@ -3,6 +3,8 @@
 	<up-tabbar
 		:value="props.currentName"
 		@change="onTabChange"
+		activeColor="#1989fa"
+		inactiveColor="#7d7e80"
 		:customStyle="{ bottom: '-15px' }"
 		fixed
 		border
@@ -70,7 +72,7 @@
 		['mine', '/pages/mine/mine']
 	])
 
-	const onTabChange = (name : string) => {
+	const onTabChange = async (name : string) => {
 		// 点击当前激活tab，直接return，不跳转
 		if (name === props.currentName) {
 			return;
@@ -89,5 +91,4 @@
 </script>
 
 <style lang="scss">
-
 </style>

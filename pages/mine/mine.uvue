@@ -48,13 +48,15 @@
 <script setup>
 	import { ref } from 'vue';
 	import { openSchema } from '@/uni_modules/uts-openSchema';
-	import { ossData } from "@/store/oss-store.uts";
+	import { ossData } from "@/storage/oss-storage.uts";
 
 	const appName = ref('');
 	const appVersion = ref('');
 
-	const ossEndpoint = computed(() => {
-		return ossData.value?.s3?.endpoint;
+	const ossEndpoint = ref('');
+
+	onShow(() => {
+		ossEndpoint.value = ossData.value.s3.endpoint;
 	});
 
 	onLoad(() => {

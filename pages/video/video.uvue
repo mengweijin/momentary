@@ -2,19 +2,227 @@
 	<!-- #ifdef APP -->
 	<scroll-view style="flex:1">
 	<!-- #endif -->
-		<view>
-			<nax-empty title="视频"></nax-empty>
+		<view class="mo-video-page">
+			<view class="mo-video-heading">
+				<text class="mo-video-title">视频</text>
+				<text class="mo-video-count">{{ videos.length }} 个视频</text>
+			</view>
+
+			<view v-if="isLoading && videos.length == 0" class="mo-video-state">
+				<text class="mo-video-state-text">正在读取视频…</text>
+			</view>
+			<nax-empty v-else-if="loadError.length > 0" title="视频加载失败" :description="loadError">
+				<template #action>
+					<rice-button type="primary" text="重试" size="small" @click="loadVideos" />
+				</template>
+			</nax-empty>
+			<nax-empty v-else-if="!isLoading && videos.length == 0" title="暂无视频" description="OSS 视频目录中还没有视频文件" />
+
+			<template v-else>
+				<text v-if="playError.length > 0" class="mo-video-error">{{ playError }}</text>
+				<view v-if="currentVideoPath.length > 0" class="mo-video-player">
+					<video class="mo-video-player-screen" :src="currentVideoPath" :controls="true" object-fit="contain"
+						@error="onVideoError"></video>
+					<text class="mo-video-playing-name">{{ currentName }}</text>
+				</view>
+
+				<rice-cell-group border>
+					<rice-cell v-for="video in videos" :key="video.key" :title="video.name"
+						:label="formatFileSize(video.size)" center :clickable="true" @click="playVideo(video)">
+						<template #leftIcon>
+							<view class="mo-video-icon">
+								<rice-icon name="play" size="22px" color="#e88450" />
+							</view>
+						</template>
+						<template #rightIcon>
+							<rice-icon :name="loadingKey == video.key ? 'loading' : 'play'" size="20px" color="#8a96a8"
+								v-if="false" />
+						</template>
+					</rice-cell>
+				</rice-cell-group>
+			</template>
 		</view>
 	<!-- #ifdef APP -->
 	</scroll-view>
 	<!-- #endif -->
+
 	<mo-tabbar currentName="video" />
 </template>
 
 <script setup>
+	import { ref } from 'vue';
+	import { init, isInited, ossData } from '@/storage/oss-storage.uts';
+	import { getObject, listObjects } from '@/uni_modules/vt-s3-api';
 
+	type VideoItem = {
+		key : string,
+		name : string,
+		size : number,
+		localPath : string
+	}
+
+	const videos = ref<VideoItem[]>([]);
+	const isLoading = ref<boolean>(false);
+	const loadError = ref<string>('');
+	const playError = ref<string>('');
+	const loadingKey = ref<string>('');
+	const currentKey = ref<string>('');
+	const currentName = ref<string>('');
+	const currentVideoPath = ref<string>('');
+
+	const formatFileSize = (size : number) : string => {
+		if (size < 1024) return size.toString() + ' B';
+		if (size < 1024 * 1024) return (size / 1024).toFixed(1) + ' KB';
+		return (size / (1024 * 1024)).toFixed(1) + ' MB';
+	};
+
+	const loadVideos = async () => {
+		if (isLoading.value) return;
+		isLoading.value = true;
+		loadError.value = '';
+		try {
+			await init();
+			if (!isInited.value) {
+				throw new Error('OSS 初始化失败，请检查连接配置。');
+			}
+
+			const result = await listObjects(ossData.value.path.video);
+			const objects = result.objects;
+			if (objects == null) {
+				throw new Error('OSS 返回的视频列表格式无效。');
+			}
+
+			const videoList : VideoItem[] = [];
+			for (let i = 0; i < objects.length; i++) {
+				const object = objects[i];
+				const key = object.key;
+				if (key == null || key.length == 0 || key.endsWith('/')) continue;
+				const size = object.size;
+				if (size == null) {
+					throw new Error('视频文件大小信息缺失：' + key);
+				}
+				const prefix = ossData.value.path.video;
+				const name = key.startsWith(prefix) ? key.substring(prefix.length) : key;
+				videoList.push({
+					key: key,
+					name: name,
+					size: size,
+					localPath: ''
+				});
+			}
+			videos.value = videoList;
+		} catch (error) {
+			console.error('Failed to load OSS videos.', error);
+			videos.value = [];
+			loadError.value = '无法读取 OSS 视频，请检查配置和网络后重试。';
+		} finally {
+			isLoading.value = false;
+		}
+	};
+
+	const playVideo = async (video : VideoItem) => {
+		playError.value = '';
+		if (loadingKey.value.length > 0) return;
+		loadingKey.value = video.key;
+		try {
+			if (video.localPath.length == 0) {
+				const result = await getObject(video.key);
+				const localPath = result.localPath;
+				if (localPath == null || localPath.length == 0) {
+					throw new Error('OSS 未返回视频本地缓存路径。');
+				}
+				video.localPath = localPath;
+			}
+			currentKey.value = video.key;
+			currentName.value = video.name;
+			currentVideoPath.value = '';
+			setTimeout(() => {
+				currentVideoPath.value = video.localPath;
+			}, 50);
+		} catch (error) {
+			console.error('Failed to load video file: ' + video.key, error);
+			playError.value = '无法加载该视频，请检查文件或网络后重试。';
+		} finally {
+			loadingKey.value = '';
+		}
+	};
+
+	const onVideoError = (event : UniVideoErrorEvent) => {
+		console.error('Video playback failed.', event);
+		playError.value = '视频播放失败，请确认文件格式受支持。';
+	};
+
+	onShow(() => {
+		loadVideos();
+	});
 </script>
 
 <style lang="scss">
+	.mo-video-page {
+		padding: 18px 16px 24px;
+	}
 
+	.mo-video-heading {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		padding: 4px 2px 16px;
+	}
+
+	.mo-video-title {
+		color: #26364e;
+		font-size: 22px;
+		font-weight: 700;
+	}
+
+	.mo-video-count {
+		color: #8793a5;
+		font-size: 13px;
+	}
+
+	.mo-video-state {
+		align-items: center;
+		padding: 42px 0;
+	}
+
+	.mo-video-state-text {
+		color: #8793a5;
+		font-size: 13px;
+	}
+
+	.mo-video-error {
+		margin-bottom: 10px;
+		color: #d36b5e;
+		font-size: 12px;
+	}
+
+	.mo-video-player {
+		margin-bottom: 16px;
+		padding: 10px;
+		border-radius: 14px;
+		background-color: #202a38;
+	}
+
+	.mo-video-player-screen {
+		width: 100%;
+		height: 220px;
+		border-radius: 8px;
+		background-color: #111820;
+	}
+
+	.mo-video-playing-name {
+		margin-top: 9px;
+		color: #ffffff;
+		font-size: 13px;
+	}
+
+	.mo-video-icon {
+		width: 48px;
+		height: 48px;
+		align-items: center;
+		justify-content: center;
+		border-radius: 12px;
+		background-color: #fff2eb;
+		margin-right: 10px;
+	}
 </style>

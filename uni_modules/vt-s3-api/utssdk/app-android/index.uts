@@ -18,16 +18,18 @@ type S3State = {
 
 let s3State: S3State | null = null
 
-function executeOnWorker<T>(operation: () => T): Promise<T> {
-	return new Promise<T>((resolve: (value: T) => void, reject: (reason: any) => void) => {
-		new Thread(() => {
-			try {
-				resolve(operation())
-			} catch (error) {
-				reject(error)
-			}
-		}).start()
-	})
+function executeOnWorker<T>(
+	operation: () => T,
+	resolve: (value: T) => void,
+	reject: (reason: any) => void
+): void {
+	new Thread(() => {
+		try {
+			resolve(operation())
+		} catch (error) {
+			reject(error)
+		}
+	}).start()
 }
 
 function getS3State(): S3State | null {
@@ -78,144 +80,165 @@ export function initS3(config: S3Config): Promise<UTSJSONObject> {
 }
 
 export function bucketExists(): Promise<boolean> {
-	const state = getS3State()
-	if (state == null) {
-		return Promise.reject(new Error('S3 has not been initialized. Call initS3 first.'))
-	}
-	return executeOnWorker<boolean>(() => state.client.doesBucketExist(state.config.bucket))
+	return new Promise<boolean>((resolve: (value: boolean) => void, reject: (reason: any) => void) => {
+		const state = getS3State()
+		if (state == null) {
+			reject(new Error('S3 has not been initialized. Call initS3 first.'))
+			return
+		}
+		executeOnWorker<boolean>(
+			() => state.client.doesBucketExist(state.config.bucket),
+			resolve,
+			reject
+		)
+	})
 }
 
 export function createBucket(): Promise<UTSJSONObject> {
-	const state = getS3State()
-	if (state == null) {
-		return Promise.reject(new Error('S3 has not been initialized. Call initS3 first.'))
-	}
-	return executeOnWorker<UTSJSONObject>(() => {
-		const request = new CreateBucketRequest(state.config.bucket)
-		request.setRegion(state.config.region)
-		state.client.createBucket(request)
-		const result: UTSJSONObject = {
-			success: true,
-			bucket: state.config.bucket
+	return new Promise<UTSJSONObject>((resolve: (value: UTSJSONObject) => void, reject: (reason: any) => void) => {
+		const state = getS3State()
+		if (state == null) {
+			reject(new Error('S3 has not been initialized. Call initS3 first.'))
+			return
 		}
-		return result
+		executeOnWorker<UTSJSONObject>(() => {
+			const request = new CreateBucketRequest(state.config.bucket)
+			request.setRegion(state.config.region)
+			state.client.createBucket(request)
+			const result: UTSJSONObject = {
+				success: true,
+				bucket: state.config.bucket
+			}
+			return result
+		}, resolve, reject)
 	})
 }
 
 export function listObjects(prefix: string | null): Promise<UTSJSONObject> {
-	const state = getS3State()
-	if (state == null) {
-		return Promise.reject(new Error('S3 has not been initialized. Call initS3 first.'))
-	}
-	return executeOnWorker<UTSJSONObject>(() => {
-		const request = new ListObjectsV2Request()
-		request.setBucketName(state.config.bucket)
-		if (prefix != null) {
-			request.setPrefix(prefix)
+	return new Promise<UTSJSONObject>((resolve: (value: UTSJSONObject) => void, reject: (reason: any) => void) => {
+		const state = getS3State()
+		if (state == null) {
+			reject(new Error('S3 has not been initialized. Call initS3 first.'))
+			return
 		}
+		executeOnWorker<UTSJSONObject>(() => {
+			const request = new ListObjectsV2Request()
+			request.setBucketName(state.config.bucket)
+			if (prefix != null) {
+				request.setPrefix(prefix)
+			}
 
-		const objects: UTSJSONObject[] = []
-		let page = state.client.listObjectsV2(request)
-		while (true) {
-			const summaries = page.getObjectSummaries()
-			for (let i = 0; i < summaries.size(); i++) {
-				const summary = summaries.get(i)
-				const modified = summary.getLastModified()
-				const item: UTSJSONObject = {
-					key: summary.getKey(),
-					size: summary.getSize(),
-					lastModified: modified == null ? null : modified.getTime(),
-					etag: summary.getETag(),
-					storageClass: summary.getStorageClass()
+			const objects: UTSJSONObject[] = []
+			let page = state.client.listObjectsV2(request)
+			while (true) {
+				const summaries = page.getObjectSummaries()
+				for (let i = 0; i < summaries.size; i++) {
+					const summary = summaries.get(i.toInt())
+					const modified = summary.getLastModified()
+					const item: UTSJSONObject = {
+						key: summary.getKey(),
+						size: summary.getSize(),
+						lastModified: modified == null ? null : modified.getTime(),
+						etag: summary.getETag(),
+						storageClass: summary.getStorageClass()
+					}
+					objects.push(item)
 				}
-				objects.push(item)
+
+				if (!page.isTruncated()) {
+					break
+				}
+				const nextToken = page.getNextContinuationToken()
+				if (nextToken == null || nextToken.length == 0) {
+					throw new Error('S3 returned a truncated object list without a continuation token.')
+				}
+				request.setContinuationToken(nextToken)
+				page = state.client.listObjectsV2(request)
 			}
 
-			if (!page.isTruncated()) {
-				break
+			const result: UTSJSONObject = {
+				success: true,
+				bucket: state.config.bucket,
+				prefix: prefix,
+				objects: objects,
+				count: objects.length
 			}
-			const nextToken = page.getNextContinuationToken()
-			if (nextToken == null || nextToken.length == 0) {
-				throw new Error('S3 returned a truncated object list without a continuation token.')
-			}
-			request.setContinuationToken(nextToken)
-			page = state.client.listObjectsV2(request)
-		}
-
-		const result: UTSJSONObject = {
-			success: true,
-			bucket: state.config.bucket,
-			prefix: prefix,
-			objects: objects,
-			count: objects.length
-		}
-		return result
+			return result
+		}, resolve, reject)
 	})
 }
 
 export function getObject(key: string): Promise<UTSJSONObject> {
-	const state = getS3State()
-	if (state == null) {
-		return Promise.reject(new Error('S3 has not been initialized. Call initS3 first.'))
-	}
-	if (key.trim().length == 0) {
-		return Promise.reject(new Error('S3 object key must not be empty.'))
-	}
-	return executeOnWorker<UTSJSONObject>(() => {
-		const s3Object = state.client.getObject(new GetObjectRequest(state.config.bucket, key))
-		const metadata = s3Object.getObjectMetadata()
-		const input = s3Object.getObjectContent()
-		const context = UTSAndroid.getAppContext()
-		if (context == null) {
-			input.close()
-			throw new Error('Android application context is unavailable.')
+	return new Promise<UTSJSONObject>((resolve: (value: UTSJSONObject) => void, reject: (reason: any) => void) => {
+		const state = getS3State()
+		if (state == null) {
+			reject(new Error('S3 has not been initialized. Call initS3 first.'))
+			return
 		}
-		const destination = File.createTempFile('s3-object-', '.tmp', context.getCacheDir())
-		try {
-			try {
-				const output = new FileOutputStream(destination)
-				try {
-					IOUtils.copy(input, output)
-					output.flush()
-				} finally {
-					output.close()
-				}
-			} finally {
+		if (key.trim().length == 0) {
+			reject(new Error('S3 object key must not be empty.'))
+			return
+		}
+		executeOnWorker<UTSJSONObject>(() => {
+			const s3Object = state.client.getObject(new GetObjectRequest(state.config.bucket, key))
+			const metadata = s3Object.getObjectMetadata()
+			const input = s3Object.getObjectContent()
+			const context = UTSAndroid.getAppContext()
+			if (context == null) {
 				input.close()
+				throw new Error('Android application context is unavailable.')
 			}
-		} catch (error) {
-			destination.delete()
-			throw error
-		}
+			const destination = File.createTempFile('s3-object-', '.tmp', context.getCacheDir())
+			try {
+				try {
+					const output = new FileOutputStream(destination)
+					try {
+						IOUtils.copy(input, output)
+						output.flush()
+					} finally {
+						output.close()
+					}
+				} finally {
+					input.close()
+				}
+			} catch (error) {
+				destination.delete()
+				throw error
+			}
 
-		const result: UTSJSONObject = {
-			success: true,
-			bucket: state.config.bucket,
-			key: key,
-			localPath: destination.getAbsolutePath(),
-			contentLength: metadata.getContentLength(),
-			contentType: metadata.getContentType(),
-			etag: metadata.getETag()
-		}
-		return result
+			const result: UTSJSONObject = {
+				success: true,
+				bucket: state.config.bucket,
+				key: key,
+				localPath: destination.getAbsolutePath(),
+				contentLength: metadata.getContentLength(),
+				contentType: metadata.getContentType(),
+				etag: metadata.getETag()
+			}
+			return result
+		}, resolve, reject)
 	})
 }
 
 export function deleteObject(key: string): Promise<UTSJSONObject> {
-	const state = getS3State()
-	if (state == null) {
-		return Promise.reject(new Error('S3 has not been initialized. Call initS3 first.'))
-	}
-	if (key.trim().length == 0) {
-		return Promise.reject(new Error('S3 object key must not be empty.'))
-	}
-	return executeOnWorker<UTSJSONObject>(() => {
-		state.client.deleteObject(new DeleteObjectRequest(state.config.bucket, key))
-		const result: UTSJSONObject = {
-			success: true,
-			bucket: state.config.bucket,
-			key: key
+	return new Promise<UTSJSONObject>((resolve: (value: UTSJSONObject) => void, reject: (reason: any) => void) => {
+		const state = getS3State()
+		if (state == null) {
+			reject(new Error('S3 has not been initialized. Call initS3 first.'))
+			return
 		}
-		return result
+		if (key.trim().length == 0) {
+			reject(new Error('S3 object key must not be empty.'))
+			return
+		}
+		executeOnWorker<UTSJSONObject>(() => {
+			state.client.deleteObject(new DeleteObjectRequest(state.config.bucket, key))
+			const result: UTSJSONObject = {
+				success: true,
+				bucket: state.config.bucket,
+				key: key
+			}
+			return result
+		}, resolve, reject)
 	})
 }

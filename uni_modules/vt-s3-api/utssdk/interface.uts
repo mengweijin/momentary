@@ -18,7 +18,7 @@ export type S3Config = {
 	secretKey : string
 	/** 存储桶名称 */
 	bucket : string
-	/** AWS 区域，如 us-east-1 */
+	/** AWS 区域，如：cn-north-1、us-east-1 */
 	region : string
 	/** 是否使用 path-style URL（MinIO / RustFS 通常设为 true） */
 	forcePathStyle : boolean

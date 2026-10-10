@@ -2,19 +2,164 @@
 	<!-- #ifdef APP -->
 	<scroll-view style="flex:1">
 	<!-- #endif -->
-		<view>
-			<nax-empty title="音乐"></nax-empty>
+		<view class="mo-music-page">
+			<view class="mo-music-heading">
+				<text class="mo-music-title">音乐</text>
+				<text class="mo-music-count">{{ tracks.length }} 首音乐</text>
+			</view>
+
+			<view v-if="isLoading && tracks.length == 0" class="mo-music-state">
+				<text class="mo-music-state-text">正在读取音乐…</text>
+			</view>
+			<nax-empty v-else-if="loadError.length > 0" title="音乐加载失败" :description="loadError">
+				<template #action>
+					<rice-button type="primary" text="重试" size="small" @click="loadTracks" />
+				</template>
+			</nax-empty>
+			<nax-empty v-else-if="!isLoading && tracks.length == 0" title="暂无音乐"
+				description="OSS 音乐目录中还没有音频文件" />
+
+			<rice-cell-group v-else border>
+				<rice-cell v-for="track in tracks" :key="track.key" :title="track.name"
+					:label="formatFileSize(track.size)" center :clickable="false">
+					<template #leftIcon>
+						<view class="mo-music-icon">
+							<rice-icon name="headset-fill" size="23px" color="#8a68d5" />
+						</view>
+					</template>
+					<template #rightIcon>
+						<view class="mo-music-play-indicator" v-if="false">
+							<rice-icon name="play" size="16px" color="#8a68d5" />
+						</view>
+					</template>
+				</rice-cell>
+			</rice-cell-group>
 		</view>
 	<!-- #ifdef APP -->
 	</scroll-view>
 	<!-- #endif -->
+
 	<mo-tabbar currentName="music" />
 </template>
 
 <script setup>
+	import { ref } from 'vue';
+	import { init, isInited, ossData } from '@/storage/oss-storage.uts';
+	import { listObjects } from '@/uni_modules/vt-s3-api';
 
+	type MusicTrack = {
+		key: string,
+		name: string,
+		size: number
+	}
+
+	const tracks = ref<MusicTrack[]>([]);
+	const isLoading = ref<boolean>(false);
+	const loadError = ref<string>('');
+
+	const formatFileSize = (size: number): string => {
+		if (size < 1024) return size.toString() + ' B';
+		if (size < 1024 * 1024) return (size / 1024).toFixed(1) + ' KB';
+		return (size / (1024 * 1024)).toFixed(1) + ' MB';
+	};
+
+	const loadTracks = async () => {
+		if (isLoading.value) return;
+		isLoading.value = true;
+		loadError.value = '';
+		try {
+			await init();
+			if (!isInited.value) {
+				throw new Error('OSS 初始化失败，请检查连接配置。');
+			}
+
+			const result = await listObjects(ossData.value.path.music);
+			const objects = result.objects;
+			if (objects == null) {
+				throw new Error('OSS 返回的音乐列表格式无效。');
+			}
+
+			const trackList: MusicTrack[] = [];
+			for (let i = 0; i < objects.length; i++) {
+				const object = objects[i];
+				const key = object.key;
+				if (key == null || key.length == 0 || key.endsWith('/')) continue;
+				const size = object.size;
+				if (size == null) {
+					throw new Error('音乐文件大小信息缺失：' + key);
+				}
+				const prefix = ossData.value.path.music;
+				const name = key.startsWith(prefix) ? key.substring(prefix.length) : key;
+				trackList.push({
+					key: key,
+					name: name,
+					size: size
+				});
+			}
+			tracks.value = trackList;
+		} catch (error) {
+			console.error('Failed to load OSS music.', error);
+			tracks.value = [];
+			loadError.value = '无法读取 OSS 音乐，请检查配置和网络后重试。';
+		} finally {
+			isLoading.value = false;
+		}
+	};
+
+	onShow(() => {
+		loadTracks();
+	});
 </script>
 
 <style lang="scss">
+	.mo-music-page {
+		padding: 18px 16px 24px;
+	}
 
+	.mo-music-heading {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		padding: 4px 2px 16px;
+	}
+
+	.mo-music-title {
+		color: #26364e;
+		font-size: 22px;
+		font-weight: 700;
+	}
+
+	.mo-music-count {
+		color: #8793a5;
+		font-size: 13px;
+	}
+
+	.mo-music-state {
+		align-items: center;
+		padding: 42px 0;
+	}
+
+	.mo-music-state-text {
+		color: #8793a5;
+		font-size: 13px;
+	}
+
+	.mo-music-icon {
+		width: 48px;
+		height: 48px;
+		align-items: center;
+		justify-content: center;
+		border-radius: 12px;
+		background-color: #f3effb;
+		margin-right: 10px;
+	}
+
+	.mo-music-play-indicator {
+		width: 32px;
+		height: 32px;
+		align-items: center;
+		justify-content: center;
+		border-radius: 16px;
+		background-color: #f3effb;
+	}
 </style>

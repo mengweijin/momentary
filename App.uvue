@@ -49,11 +49,11 @@
 	 * 使用 <rice-icon> 组件加载 iconfont 字体图标。
 	 * https://riceui.cn/components/icon.html
 	 */
-   @font-face {
-     font-family: "icon-momentary";
-     src: url('@/static/fonts/iconfont.ttf') format('truetype');
-   }
-   
+	@font-face {
+		font-family: "icon-momentary";
+		src: url('@/static/fonts/iconfont.ttf') format('truetype');
+	}
+
 	/*每个页面公共css */
 	.uni-row {
 		flex-direction: row;

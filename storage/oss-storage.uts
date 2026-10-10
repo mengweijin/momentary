@@ -1,0 +1,55 @@
+import { useStorage } from '@/utils/use-storage.uts'
+import type { S3Config } from '@/uni_modules/vt-s3-api/utssdk/interface.uts'
+import { initS3, bucketExists, createBucket } from '@/uni_modules/vt-s3-api'
+
+export type OssPath = {
+	photo : string
+	music : string
+	video : string
+}
+export type OssConfig = {
+	s3 : S3Config,
+	path : OssPath
+}
+
+export const defaultConfig : OssConfig = {
+	s3: {
+		endpoint: 'http://127.0.0.1:9000',
+		accessKey: '',
+		secretKey: '',
+		bucket: 'momentary',
+		region: 'cn-north-1',
+		forcePathStyle: true
+	},
+	path: {
+		photo: 'photo/',
+		music: 'music/',
+		video: 'video/'
+	}
+}
+
+export const ossData : Ref<OssConfig> = useStorage('oss-config.json', defaultConfig);
+
+export const resetOssConfig = () => {
+	ossData.value = defaultConfig;
+};
+
+export const isInited : Ref<boolean> = ref(false);
+
+export async function init(force: boolean = false) {
+	try {
+		if (force || !isInited.value) {
+			console.log('S3 init......');
+			await initS3(ossData.value?.s3);
+			const exists : boolean = await bucketExists();
+			console.log('Bucket [' + ossData.value.s3.bucket + '] exists is ' + exists);
+			if (!exists) {
+				await createBucket();
+				console.log('Bucket [' + ossData.value.s3.bucket + '] created.');
+			}
+			isInited.value = true;
+		}
+	} catch {
+		isInited.value = false;
+	}
+}

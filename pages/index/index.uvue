@@ -1,20 +1,345 @@
 <template>
 	<!-- #ifdef APP -->
-	<scroll-view style="flex:1">
+	<scroll-view style="flex: 1; min-height: 0">
 	<!-- #endif -->
-		<view>
-			<nax-empty title="首页"></nax-empty>
+		<view class="mo-index-page">
+			<view class="mo-index-header">
+				<view class="mo-index-brand">
+					<rice-image width="56" height="56" src="/static/images/png/logo.png" radius="14px" />
+					<view class="mo-index-brand-text">
+						<text class="mo-index-title">时光盒</text>
+						<text class="mo-index-subtitle">把美好，收进日常</text>
+					</view>
+				</view>
+				<text class="mo-index-greeting">欢迎回来</text>
+				<text class="mo-index-description">你的私人影音空间，随时回味每一刻。</text>
+			</view>
+
+			<view class="mo-index-section-heading">
+				<view>
+					<text class="mo-index-section-title">我的媒体库</text>
+					<text class="mo-index-section-caption">珍藏的内容一目了然</text>
+				</view>
+				<text class="mo-index-refresh" @click="loadStats">{{ isLoading ? '加载中' : '刷新' }}</text>
+			</view>
+
+			<view class="mo-index-stats">
+				<view class="mo-index-stat-card mo-index-photo" @click="openTab('/pages/photo/photo')">
+					<view class="mo-index-icon mo-index-photo-icon">
+						<rice-icon name="photo" size="22px" color="#4388f5" />
+					</view>
+					<text class="mo-index-count">{{ photoCount }}</text>
+					<text class="mo-index-stat-label">照片</text>
+					<text class="mo-index-stat-link">去看看 ›</text>
+				</view>
+				<view class="mo-index-stat-card mo-index-music" @click="openTab('/pages/music/music')">
+					<view class="mo-index-icon mo-index-music-icon">
+						<rice-icon name="volume-fill" size="22px" color="#9b70e8" />
+					</view>
+					<text class="mo-index-count">{{ musicCount }}</text>
+					<text class="mo-index-stat-label">音乐</text>
+					<text class="mo-index-stat-link">去听听 ›</text>
+				</view>
+				<view class="mo-index-stat-card mo-index-video" @click="openTab('/pages/video/video')">
+					<view class="mo-index-icon mo-index-video-icon">
+						<rice-icon name="play" size="22px" color="#f18b55" />
+					</view>
+					<text class="mo-index-count">{{ videoCount }}</text>
+					<text class="mo-index-stat-label">视频</text>
+					<text class="mo-index-stat-link">去看看 ›</text>
+				</view>
+			</view>
+
+			<text v-if="statsError.length > 0" class="mo-index-error">{{ statsError }}</text>
+			<text v-else class="mo-index-footnote">数量根据 OSS 中对应目录的文件实时统计</text>
+
+			<view class="mo-index-storage">
+				<view class="mo-index-storage-icon">
+					<text class="mo-index-storage-mark">S3</text>
+				</view>
+				<view class="mo-index-storage-info">
+					<text class="mo-index-storage-label">当前存储空间</text>
+					<text class="mo-index-storage-bucket">{{ ossData.s3.bucket }}</text>
+				</view>
+				<text class="mo-index-storage-status">{{ isLoading ? '同步中' : 'OSS' }}</text>
+			</view>
+
+			<view class="mo-index-tip">
+				<text class="mo-index-tip-title">记录每一段值得珍藏的时光</text>
+				<text class="mo-index-tip-content">照片、音乐与视频，汇聚在你的专属时光盒里。</text>
+			</view>
 		</view>
 	<!-- #ifdef APP -->
 	</scroll-view>
 	<!-- #endif -->
-	<mo-tabbar currentName="index" />
+	<mo-tabbar currentName="index" style="flex: 0 0 auto; justify-content: flex-end" />
 </template>
 
 <script setup>
+	import { ref } from 'vue';
+	import { init, isInited, ossData } from '@/storage/oss-storage.uts';
+	import { listObjects } from '@/uni_modules/vt-s3-api';
 
+	const photoCount = ref<string>('—');
+	const musicCount = ref<string>('—');
+	const videoCount = ref<string>('—');
+	const isLoading = ref<boolean>(false);
+	const statsError = ref<string>('');
+
+	const getCount = (result: UTSJSONObject): string => {
+		const count = result.count;
+		if (count == null) {
+			throw new Error('OSS 返回的文件数量无效。');
+		}
+		return count.toString();
+	};
+
+	const loadStats = async () => {
+		if (isLoading.value) return;
+		isLoading.value = true;
+		statsError.value = '';
+		try {
+			await init();
+			if (!isInited.value) {
+				throw new Error('OSS 初始化失败。');
+			}
+			const results = await Promise.all([
+				listObjects(ossData.value.path.photo),
+				listObjects(ossData.value.path.music),
+				listObjects(ossData.value.path.video)
+			]);
+			photoCount.value = getCount(results[0]);
+			musicCount.value = getCount(results[1]);
+			videoCount.value = getCount(results[2]);
+		} catch (error) {
+			console.error('Failed to load OSS media counts.', error);
+			photoCount.value = '—';
+			musicCount.value = '—';
+			videoCount.value = '—';
+			statsError.value = '暂时无法读取媒体数量，请检查 OSS 配置或网络后重试。';
+		} finally {
+			isLoading.value = false;
+		}
+	};
+
+	const openTab = (url: string) => {
+		uni.switchTab({ url });
+	};
+
+	onShow(() => {
+		loadStats();
+	});
 </script>
 
 <style lang="scss">
+	.mo-index-page {
+		padding: 24px 18px 30px;
+		background-color: #f5f7fb;
+	}
 
+	.mo-index-header {
+		padding: 22px 20px 24px;
+		border-radius: 22px;
+		background-color: #eaf2ff;
+	}
+
+	.mo-index-brand {
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.mo-index-brand-text {
+		margin-left: 13px;
+	}
+
+	.mo-index-title {
+		color: #20324d;
+		font-size: 20px;
+		font-weight: 700;
+	}
+
+	.mo-index-subtitle {
+		margin-top: 4px;
+		color: #71809a;
+		font-size: 12px;
+	}
+
+	.mo-index-greeting {
+		margin-top: 22px;
+		color: #20324d;
+		font-size: 23px;
+		font-weight: 700;
+	}
+
+	.mo-index-description {
+		margin-top: 7px;
+		color: #71809a;
+		font-size: 13px;
+	}
+
+	.mo-index-section-heading {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		margin-top: 27px;
+		margin-bottom: 14px;
+	}
+
+	.mo-index-section-title {
+		color: #26364e;
+		font-size: 18px;
+		font-weight: 700;
+	}
+
+	.mo-index-section-caption {
+		margin-top: 5px;
+		color: #9aa4b4;
+		font-size: 12px;
+	}
+
+	.mo-index-refresh {
+		padding: 7px 13px;
+		border-radius: 16px;
+		background-color: #e8effb;
+		color: #4b76bb;
+		font-size: 12px;
+	}
+
+	.mo-index-stats {
+		flex-direction: row;
+	}
+
+	.mo-index-stat-card {
+		flex: 1;
+		align-items: center;
+		margin-right: 10px;
+		padding: 15px 5px 14px;
+		border-radius: 18px;
+		background-color: #ffffff;
+	}
+
+	.mo-index-stat-card:last-child {
+		margin-right: 0;
+	}
+
+	.mo-index-photo-icon {
+		background-color: #edf4ff;
+	}
+
+	.mo-index-music-icon {
+		background-color: #f4efff;
+	}
+
+	.mo-index-video-icon {
+		background-color: #fff2eb;
+	}
+
+	.mo-index-icon {
+		width: 42px;
+		height: 42px;
+		align-items: center;
+		justify-content: center;
+		border-radius: 14px;
+	}
+
+	.mo-index-count {
+		margin-top: 13px;
+		color: #26364e;
+		font-size: 23px;
+		font-weight: 700;
+	}
+
+	.mo-index-stat-label {
+		margin-top: 4px;
+		color: #647187;
+		font-size: 13px;
+	}
+
+	.mo-index-stat-link {
+		margin-top: 11px;
+		color: #8793a5;
+		font-size: 11px;
+	}
+
+	.mo-index-footnote {
+		margin-top: 12px;
+		color: #a1aab8;
+		font-size: 11px;
+		text-align: center;
+	}
+
+	.mo-index-error {
+		margin-top: 12px;
+		color: #d36b5e;
+		font-size: 12px;
+		text-align: center;
+	}
+
+	.mo-index-storage {
+		flex-direction: row;
+		align-items: center;
+		margin-top: 23px;
+		padding: 15px;
+		border-radius: 17px;
+		background-color: #ffffff;
+	}
+
+	.mo-index-storage-icon {
+		width: 42px;
+		height: 42px;
+		align-items: center;
+		justify-content: center;
+		border-radius: 14px;
+		background-color: #edf4ff;
+	}
+
+	.mo-index-storage-info {
+		flex: 1;
+		margin-left: 12px;
+	}
+
+	.mo-index-storage-mark {
+		color: #4388f5;
+		font-size: 15px;
+		font-weight: 700;
+	}
+
+	.mo-index-storage-label {
+		color: #8a96a8;
+		font-size: 11px;
+	}
+
+	.mo-index-storage-bucket {
+		margin-top: 4px;
+		color: #34445d;
+		font-size: 14px;
+		font-weight: 600;
+	}
+
+	.mo-index-storage-status {
+		padding: 5px 10px;
+		border-radius: 12px;
+		background-color: #eef7f1;
+		color: #55a174;
+		font-size: 11px;
+	}
+
+	.mo-index-tip {
+		margin-top: 17px;
+		padding: 18px;
+		border-radius: 17px;
+		background-color: #fff8ed;
+	}
+
+	.mo-index-tip-title {
+		color: #8a673b;
+		font-size: 14px;
+		font-weight: 600;
+	}
+
+	.mo-index-tip-content {
+		margin-top: 7px;
+		color: #a58b6b;
+		font-size: 12px;
+	}
 </style>
