@@ -1,0 +1,310 @@
+import { S3Config } from "./interface.uts"
+
+type EndpointParts = {
+	protocol : string,
+	host : string,
+	basePath : string
+}
+
+export type S3SignedRequest = {
+	url : string,
+	host : string,
+	date : string,
+	payloadHash : string,
+	authorization : string
+}
+
+function requireValue(value : string, name : string) : void {
+	if (value!.trim().length == 0) {
+		throw new Error(`S3 ${name} must not be empty`)
+	}
+}
+
+function getEndpointParts(config : S3Config) : EndpointParts {
+	const endpoint = config.endpoint!.trim()
+	requireValue(endpoint, "endpoint")
+
+	const protocolSeparator = endpoint.indexOf("://")
+	if (protocolSeparator < 0) {
+		throw new Error("S3 endpoint must include an http:// or https:// scheme")
+	}
+	const protocol = endpoint.substring(0, protocolSeparator).toLowerCase()
+	if (protocol != "http" && protocol != "https") {
+		throw new Error("S3 endpoint must use http or https")
+	}
+
+	let endpointPath : string = endpoint.substring(protocolSeparator + 3)
+	const endpointQueryIndex = endpointPath.indexOf("?")
+	if (endpointQueryIndex >= 0) {
+		endpointPath = endpointPath.substring(0, endpointQueryIndex)
+	}
+	const pathIndex = endpointPath.indexOf("/")
+	let authority : string = endpointPath
+	let basePath : string = ""
+	if (pathIndex >= 0) {
+		authority = endpointPath.substring(0, pathIndex)
+		basePath = endpointPath.substring(pathIndex)
+	}
+	while (basePath.endsWith("/")) {
+		basePath = basePath.substring(0, basePath.length - 1)
+	}
+	requireValue(authority, "endpoint host")
+
+	return {
+		protocol: protocol,
+		host: authority.toLowerCase(),
+		basePath: basePath
+	}
+}
+
+function awsEncode(value : string) : string {
+	const encoded = encodeURIComponent(value)!
+	return encoded
+		.replaceAll("!", "%21")
+		.replaceAll("'", "%27")
+		.replaceAll("(", "%28")
+		.replaceAll(")", "%29")
+		.replaceAll("*", "%2A")
+}
+
+function canonicalUri(path : string) : string {
+	return awsEncode(path).replaceAll("%2F", "/")
+}
+
+function utcTimestamp(date : Date) : string {
+	const year = date.getUTCFullYear().toString()
+	const month = (date.getUTCMonth() + 1).toString().padStart(2, "0")
+	const day = date.getUTCDate().toString().padStart(2, "0")
+	const hour = date.getUTCHours().toString().padStart(2, "0")
+	const minute = date.getUTCMinutes().toString().padStart(2, "0")
+	const second = date.getUTCSeconds().toString().padStart(2, "0")
+	return `${year}${month}${day}T${hour}${minute}${second}Z`
+}
+
+export function getListQuery(prefix : string | null) : string {
+	const pairs : Array<string> = ["list-type=2"]
+	if (prefix != null) {
+		pairs.push(`prefix=${awsEncode(prefix!)}`)
+	}
+	pairs.sort()
+	return pairs.join("&")
+}
+
+export function signS3Request(config : S3Config, method : "GET" | "HEAD" | "PUT" | "DELETE", path : string, canonicalQuery : string) : S3SignedRequest {
+	const endpoint = getEndpointParts(config)
+	let host : string = endpoint.host
+	let objectPath : string = endpoint.basePath
+	if (config.forcePathStyle) {
+		objectPath += `/${config.bucket}`
+	} else {
+		host = `${config.bucket!}.${host}`
+	}
+	objectPath += path
+	if (objectPath.length == 0) {
+		objectPath = "/"
+	}
+	const uri = canonicalUri(objectPath)
+	const url = `${endpoint.protocol}://${host}${uri}${canonicalQuery.length > 0 ? `?${canonicalQuery}` : ""}`
+
+	const dateTime = utcTimestamp(new Date())
+	const date = dateTime.substring(0, 8)
+	const payloadHash = bytesToHex(sha256Bytes(utf8Bytes("")))
+	const signedHeaders = "host;x-amz-content-sha256;x-amz-date"
+	const canonicalHeaders = `host:${host}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${dateTime}\n`
+	const canonicalRequest = `${method}\n${uri}\n${canonicalQuery}\n${canonicalHeaders}\n${signedHeaders}\n${payloadHash}`
+	const scope = `${date}/${config.region!}/s3/aws4_request`
+	const canonicalRequestHash = bytesToHex(sha256Bytes(utf8Bytes(canonicalRequest)))
+	const stringToSign = `AWS4-HMAC-SHA256\n${dateTime}\n${scope}\n${canonicalRequestHash}`
+
+	const dateKey = hmacHex(date, `AWS4${config.secretKey!}`, false)
+	const regionKey = hmacHex(config.region!, dateKey, true)
+	const serviceKey = hmacHex("s3", regionKey, true)
+	const signingKey = hmacHex("aws4_request", serviceKey, true)
+	const signature = hmacHex(stringToSign, signingKey, true)
+	const authorization = `AWS4-HMAC-SHA256 Credential=${config.accessKey!}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}`
+
+	return {
+		url: url,
+		host: host,
+		date: dateTime,
+		payloadHash: payloadHash,
+		authorization: authorization
+	}
+}
+
+const SHA256_K : Array<number> = [
+	0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+	0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+	0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+	0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+	0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+	0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+	0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+	0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+]
+
+function rotateRight(value : number, amount : number) : number {
+	return (value >>> amount) | (value << (32 - amount))
+}
+
+function numberAt(values : Array<number>, index : number) : number {
+	const value = values[index]
+	if (value == null) {
+		throw new Error("S3 signing encountered an invalid SHA-256 state")
+	}
+	return value!
+}
+
+function utf8Bytes(value : string) : Array<number> {
+	const bytes : Array<number> = []
+	let index = 0
+	while (index < value.length) {
+		let codePoint = value.charCodeAt(index)!
+		index += 1
+		if (codePoint >= 0xd800 && codePoint <= 0xdbff && index < value.length) {
+			const low = value.charCodeAt(index)!
+			if (low >= 0xdc00 && low <= 0xdfff) {
+				codePoint = 0x10000 + ((codePoint - 0xd800) << 10) + (low - 0xdc00)
+				index += 1
+			}
+		}
+		if (codePoint < 0x80) {
+			bytes.push(codePoint)
+		} else if (codePoint < 0x800) {
+			bytes.push(0xc0 | (codePoint >> 6), 0x80 | (codePoint & 0x3f))
+		} else if (codePoint < 0x10000) {
+			bytes.push(0xe0 | (codePoint >> 12), 0x80 | ((codePoint >> 6) & 0x3f), 0x80 | (codePoint & 0x3f))
+		} else {
+			bytes.push(0xf0 | (codePoint >> 18), 0x80 | ((codePoint >> 12) & 0x3f), 0x80 | ((codePoint >> 6) & 0x3f), 0x80 | (codePoint & 0x3f))
+		}
+	}
+	return bytes
+}
+
+function sha256Bytes(input : Array<number>) : Array<number> {
+	const bytes = input.slice()
+	const bitLength = bytes.length * 8
+	bytes.push(0x80)
+	while (bytes.length % 64 != 56) {
+		bytes.push(0)
+	}
+	const highBits = Math.floor(bitLength / 0x100000000)
+	const lowBits = bitLength >>> 0
+	bytes.push(
+		(highBits >>> 24) & 0xff, (highBits >>> 16) & 0xff, (highBits >>> 8) & 0xff, highBits & 0xff,
+		(lowBits >>> 24) & 0xff, (lowBits >>> 16) & 0xff, (lowBits >>> 8) & 0xff, lowBits & 0xff
+	)
+
+	let hash : Array<number> = [
+		0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+		0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
+	]
+	let offset = 0
+	while (offset < bytes.length) {
+		const words : Array<number> = []
+		for (let index = 0; index < 16; index += 1) {
+			const wordOffset = offset + index * 4
+			words.push(
+				((numberAt(bytes, wordOffset) << 24) | (numberAt(bytes, wordOffset + 1) << 16) |
+				(numberAt(bytes, wordOffset + 2) << 8) | numberAt(bytes, wordOffset + 3)) >>> 0
+			)
+		}
+		for (let index = 16; index < 64; index += 1) {
+			const x = numberAt(words, index - 15)
+			const y = numberAt(words, index - 2)
+			const sigma0 = rotateRight(x, 7) ^ rotateRight(x, 18) ^ (x >>> 3)
+			const sigma1 = rotateRight(y, 17) ^ rotateRight(y, 19) ^ (y >>> 10)
+			words.push((numberAt(words, index - 16) + sigma0 + numberAt(words, index - 7) + sigma1) >>> 0)
+		}
+
+		let a = numberAt(hash, 0)
+		let b = numberAt(hash, 1)
+		let c = numberAt(hash, 2)
+		let d = numberAt(hash, 3)
+		let e = numberAt(hash, 4)
+		let f = numberAt(hash, 5)
+		let g = numberAt(hash, 6)
+		let h = numberAt(hash, 7)
+		for (let index = 0; index < 64; index += 1) {
+			const sum1 = rotateRight(e, 6) ^ rotateRight(e, 11) ^ rotateRight(e, 25)
+			const choice = (e & f) ^ ((~e) & g)
+			const temp1 = (h + sum1 + choice + numberAt(SHA256_K, index) + numberAt(words, index)) >>> 0
+			const sum0 = rotateRight(a, 2) ^ rotateRight(a, 13) ^ rotateRight(a, 22)
+			const majority = (a & b) ^ (a & c) ^ (b & c)
+			const temp2 = (sum0 + majority) >>> 0
+			h = g
+			g = f
+			f = e
+			e = (d + temp1) >>> 0
+			d = c
+			c = b
+			b = a
+			a = (temp1 + temp2) >>> 0
+		}
+		hash = [
+			(numberAt(hash, 0) + a) >>> 0, (numberAt(hash, 1) + b) >>> 0, (numberAt(hash, 2) + c) >>> 0, (numberAt(hash, 3) + d) >>> 0,
+			(numberAt(hash, 4) + e) >>> 0, (numberAt(hash, 5) + f) >>> 0, (numberAt(hash, 6) + g) >>> 0, (numberAt(hash, 7) + h) >>> 0
+		]
+		offset += 64
+	}
+
+	const digest : Array<number> = []
+	for (let word of hash) {
+		if (word == null) {
+			throw new Error("S3 signing encountered an invalid SHA-256 digest")
+		}
+		const value = word!
+		digest.push((value >>> 24) & 0xff, (value >>> 16) & 0xff, (value >>> 8) & 0xff, value & 0xff)
+	}
+	return digest
+}
+
+function bytesToHex(bytes : Array<number>) : string {
+	const hex = "0123456789abcdef"
+	let result = ""
+	for (let byte of bytes) {
+		result += hex.charAt((byte >> 4) & 0xf) + hex.charAt(byte & 0xf)
+	}
+	return result
+}
+
+function hexToBytes(value : string) : Array<number> {
+	if (value.length % 2 != 0) {
+		throw new Error("S3 signing key must be a valid hexadecimal string")
+	}
+	const bytes : Array<number> = []
+	for (let index = 0; index < value.length; index += 2) {
+		const byte = parseInt(value.substring(index, index + 2), 16)
+		if (isNaN(byte)) {
+			throw new Error("S3 signing key must be a valid hexadecimal string")
+		}
+		bytes.push(byte)
+	}
+	return bytes
+}
+
+function hmacSha256(plaintext : string, keyBytes : Array<number>) : string {
+	let normalizedKey = keyBytes.slice()
+	if (normalizedKey.length > 64) {
+		normalizedKey = sha256Bytes(normalizedKey)
+	}
+	while (normalizedKey.length < 64) {
+		normalizedKey.push(0)
+	}
+	const innerBytes : Array<number> = []
+	const outerBytes : Array<number> = []
+	for (let byte of normalizedKey) {
+		innerBytes.push(byte ^ 0x36)
+		outerBytes.push(byte ^ 0x5c)
+	}
+	for (let byte of utf8Bytes(plaintext)) {
+		innerBytes.push(byte)
+	}
+	outerBytes.push(...sha256Bytes(innerBytes))
+	return bytesToHex(sha256Bytes(outerBytes))
+}
+
+function hmacHex(plaintext : string, key : string, keyIsHex : boolean) : string {
+	const keyBytes = keyIsHex ? hexToBytes(key) : utf8Bytes(key)
+	return hmacSha256(plaintext, keyBytes)
+}

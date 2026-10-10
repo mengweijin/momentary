@@ -17,6 +17,7 @@
 					<rice-image width="30" height="30" src="/static/images/png/logo.png" radius="8px" />
 				</template>
 			</rice-cell>
+			<rice-cell title="软件版本" :value="appVersion"></rice-cell>
 			<rice-cell title="软件协议">
 				<template #rightIcon>
 					<uni-link href="https://github.com/mengweijin/momentary/blob/master/LICENSE" target="_blank">
@@ -24,7 +25,6 @@
 					</uni-link>
 				</template>
 			</rice-cell>
-			<rice-cell title="软件版本" :value="appVersion"></rice-cell>
 			<rice-cell title="代码仓库">
 				<template #rightIcon>
 					<uni-link href="https://github.com/mengweijin/momentary" target="_blank"
@@ -62,7 +62,7 @@
 		const appInfo = uni.getAppBaseInfo();
 		// 用 ! 告诉编译器忽略 null 检查。否则 PC 端正常，安卓端编译报错
 		appName.value = appInfo.appName!;
-		appVersion.value = appInfo.appVersion!;
+		appVersion.value = 'v' + appInfo.appVersion!;
 	});
 </script>
 

@@ -1,0 +1,221 @@
+import AmazonS3Client from 'com.amazonaws.services.s3.AmazonS3Client'
+import BasicAWSCredentials from 'com.amazonaws.auth.BasicAWSCredentials'
+import CreateBucketRequest from 'com.amazonaws.services.s3.model.CreateBucketRequest'
+import DeleteObjectRequest from 'com.amazonaws.services.s3.model.DeleteObjectRequest'
+import GetObjectRequest from 'com.amazonaws.services.s3.model.GetObjectRequest'
+import ListObjectsV2Request from 'com.amazonaws.services.s3.model.ListObjectsV2Request'
+import S3ClientOptions from 'com.amazonaws.services.s3.S3ClientOptions'
+import IOUtils from 'com.amazonaws.util.IOUtils'
+import File from 'java.io.File'
+import FileOutputStream from 'java.io.FileOutputStream'
+import Thread from 'java.lang.Thread'
+import { S3Config } from '../interface.uts'
+
+type S3State = {
+	client: AmazonS3Client
+	config: S3Config
+}
+
+let s3State: S3State | null = null
+
+function executeOnWorker<T>(operation: () => T): Promise<T> {
+	return new Promise<T>((resolve: (value: T) => void, reject: (reason: any) => void) => {
+		new Thread(() => {
+			try {
+				resolve(operation())
+			} catch (error) {
+				reject(error)
+			}
+		}).start()
+	})
+}
+
+function getS3State(): S3State | null {
+	return s3State
+}
+
+export function initS3(config: S3Config): Promise<UTSJSONObject> {
+	return new Promise<UTSJSONObject>((resolve: (value: UTSJSONObject) => void, reject: (reason: any) => void) => {
+		try {
+			const endpoint = config.endpoint.trim().replace(/\/+$/, '')
+			if (endpoint.length == 0 || (!endpoint.startsWith('http://') && !endpoint.startsWith('https://'))) {
+				throw new Error('S3 endpoint must start with http:// or https://.')
+			}
+			if (config.accessKey.trim().length == 0 || config.secretKey.trim().length == 0) {
+				throw new Error('S3 accessKey and secretKey must not be empty.')
+			}
+			if (config.bucket.trim().length == 0 || config.region.trim().length == 0) {
+				throw new Error('S3 bucket and region must not be empty.')
+			}
+
+			const savedConfig: S3Config = {
+				endpoint: endpoint,
+				accessKey: config.accessKey,
+				secretKey: config.secretKey,
+				bucket: config.bucket,
+				region: config.region,
+				forcePathStyle: config.forcePathStyle
+			}
+			const client = new AmazonS3Client(new BasicAWSCredentials(savedConfig.accessKey, savedConfig.secretKey))
+			client.setEndpoint(savedConfig.endpoint)
+			client.setSignerRegionOverride(savedConfig.region)
+			client.setS3ClientOptions(S3ClientOptions.builder().setPathStyleAccess(savedConfig.forcePathStyle).build())
+			s3State = {
+				client: client,
+				config: savedConfig
+			}
+			const result: UTSJSONObject = {
+				success: true,
+				bucket: savedConfig.bucket,
+				endpoint: savedConfig.endpoint,
+				region: savedConfig.region
+			}
+			resolve(result)
+		} catch (error) {
+			reject(error)
+		}
+	})
+}
+
+export function bucketExists(): Promise<boolean> {
+	const state = getS3State()
+	if (state == null) {
+		return Promise.reject(new Error('S3 has not been initialized. Call initS3 first.'))
+	}
+	return executeOnWorker<boolean>(() => state.client.doesBucketExist(state.config.bucket))
+}
+
+export function createBucket(): Promise<UTSJSONObject> {
+	const state = getS3State()
+	if (state == null) {
+		return Promise.reject(new Error('S3 has not been initialized. Call initS3 first.'))
+	}
+	return executeOnWorker<UTSJSONObject>(() => {
+		const request = new CreateBucketRequest(state.config.bucket)
+		request.setRegion(state.config.region)
+		state.client.createBucket(request)
+		const result: UTSJSONObject = {
+			success: true,
+			bucket: state.config.bucket
+		}
+		return result
+	})
+}
+
+export function listObjects(prefix: string | null): Promise<UTSJSONObject> {
+	const state = getS3State()
+	if (state == null) {
+		return Promise.reject(new Error('S3 has not been initialized. Call initS3 first.'))
+	}
+	return executeOnWorker<UTSJSONObject>(() => {
+		const request = new ListObjectsV2Request()
+		request.setBucketName(state.config.bucket)
+		if (prefix != null) {
+			request.setPrefix(prefix)
+		}
+
+		const objects: UTSJSONObject[] = []
+		let page = state.client.listObjectsV2(request)
+		while (true) {
+			const summaries = page.getObjectSummaries()
+			for (let i = 0; i < summaries.size(); i++) {
+				const summary = summaries.get(i)
+				const modified = summary.getLastModified()
+				const item: UTSJSONObject = {
+					key: summary.getKey(),
+					size: summary.getSize(),
+					lastModified: modified == null ? null : modified.getTime(),
+					etag: summary.getETag(),
+					storageClass: summary.getStorageClass()
+				}
+				objects.push(item)
+			}
+
+			if (!page.isTruncated()) {
+				break
+			}
+			const nextToken = page.getNextContinuationToken()
+			if (nextToken == null || nextToken.length == 0) {
+				throw new Error('S3 returned a truncated object list without a continuation token.')
+			}
+			request.setContinuationToken(nextToken)
+			page = state.client.listObjectsV2(request)
+		}
+
+		const result: UTSJSONObject = {
+			success: true,
+			bucket: state.config.bucket,
+			prefix: prefix,
+			objects: objects,
+			count: objects.length
+		}
+		return result
+	})
+}
+
+export function getObject(key: string): Promise<UTSJSONObject> {
+	const state = getS3State()
+	if (state == null) {
+		return Promise.reject(new Error('S3 has not been initialized. Call initS3 first.'))
+	}
+	if (key.trim().length == 0) {
+		return Promise.reject(new Error('S3 object key must not be empty.'))
+	}
+	return executeOnWorker<UTSJSONObject>(() => {
+		const s3Object = state.client.getObject(new GetObjectRequest(state.config.bucket, key))
+		const metadata = s3Object.getObjectMetadata()
+		const input = s3Object.getObjectContent()
+		const context = UTSAndroid.getAppContext()
+		if (context == null) {
+			input.close()
+			throw new Error('Android application context is unavailable.')
+		}
+		const destination = File.createTempFile('s3-object-', '.tmp', context.getCacheDir())
+		try {
+			try {
+				const output = new FileOutputStream(destination)
+				try {
+					IOUtils.copy(input, output)
+					output.flush()
+				} finally {
+					output.close()
+				}
+			} finally {
+				input.close()
+			}
+		} catch (error) {
+			destination.delete()
+			throw error
+		}
+
+		const result: UTSJSONObject = {
+			success: true,
+			bucket: state.config.bucket,
+			key: key,
+			localPath: destination.getAbsolutePath(),
+			contentLength: metadata.getContentLength(),
+			contentType: metadata.getContentType(),
+			etag: metadata.getETag()
+		}
+		return result
+	})
+}
+
+export function deleteObject(key: string): Promise<UTSJSONObject> {
+	const state = getS3State()
+	if (state == null) {
+		return Promise.reject(new Error('S3 has not been initialized. Call initS3 first.'))
+	}
+	if (key.trim().length == 0) {
+		return Promise.reject(new Error('S3 object key must not be empty.'))
+	}
+	return executeOnWorker<UTSJSONObject>(() => {
+		state.client.deleteObject(new DeleteObjectRequest(state.config.bucket, key))
+		const result: UTSJSONObject = {
+			success: true,
+			bucket: state.config.bucket,
+			key: key
+		}
+		return result
+	})
+}

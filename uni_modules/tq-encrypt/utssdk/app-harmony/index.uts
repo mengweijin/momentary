@@ -1,0 +1,180 @@
+import { CryptoJS } from '@ohos/crypto-js'
+import { sm2, sm3, sm4 } from '@yyz116/sm-crypto'
+import { JSEncrypt } from '@devzeng/rsa'
+
+// md5加密
+export const md5Sync = function (md5Str : string) : string {
+	const res : string = CryptoJS.MD5(md5Str).toString();
+	return res;
+}
+
+// base64加密
+export const base64EncodeSync = function (str : string) : string {
+	const wordArray = CryptoJS.enc.Utf8.parse(str);
+
+	const base64Str = CryptoJS.enc.Base64.stringify(wordArray);
+	return base64Str;
+}
+
+// base64解密
+export const base64DecodeSync = function (str : string) : string {
+	const parsedWordArray = CryptoJS.enc.Base64.parse(str);
+	const parsedStr = parsedWordArray.toString(CryptoJS.enc.Utf8);
+	return parsedStr;
+}
+
+// 国产SM4ECB加密
+export const sm4ECBEncryptSync = function (dataString : string, keySM4 : string) : string {
+	const res : string = sm4.encrypt(dataString, keySM4)
+	return res;
+}
+
+// 国产SM4ECB解密
+export const sm4ECBDecryptSync = function (dataString : string, keySM4 : string) : string {
+	const res : string = sm4.decrypt(dataString, keySM4)
+	return res;
+}
+export type HexString = string;
+
+export interface SM4ModeBase {
+	padding ?: "none" | "pkcs#5" | "pkcs#7";
+	mode ?: "cbc";
+	iv ?: number[] | HexString;
+}
+// 国产SM4CBC加密
+export const sm4CBCEncryptSync = function (dataString : string, keySM4 : string, iv : string) : string {
+	const res : string = sm4.encrypt(dataString, keySM4, { mode: 'cbc', iv: iv } as SM4ModeBase)
+	return res;
+}
+
+// 国产SM4CBC解密
+export const sm4CBCDecryptSync = function (dataString : string, keySM4 : string, iv : string) : string {
+	const res : string = sm4.decrypt(dataString, keySM4, { mode: 'cbc', iv: iv } as SM4ModeBase)
+	return res;
+}
+
+// 国产SM3加密
+export const sm3EncryptSync = function (dataString : string) : string {
+	let res = sm3(dataString)
+	return res;
+}
+
+// 国产SM2非对称公钥加密
+export const sm2EncryptSync = function (dataString : string, publicKey : string) : string {
+	let res = sm2.doEncrypt(dataString, publicKey, 1);
+	return res;
+}
+
+// 国产SM2非对称私钥解密
+export const sm2DecryptSync = function (dataString : string, privateKey : string) : string {
+	let res = sm2.doDecrypt(dataString, privateKey, 1);
+	return res;
+}
+
+// sm2签名
+export const sm2PubSignSync = function (dataString : string, privateKey : string) : string {
+	const sign = sm2.doSignature(dataString, privateKey);
+	return sign;
+}
+// sm2验签
+export const sm2PubSignValSync = function (dataString : string, publicKey : string, sign : string) : boolean {
+	const verifySign = sm2.doVerifySignature(dataString, sign, publicKey);
+	return verifySign;
+}
+
+// AES对称加密
+export const aesEncryptSync = function (plainText : string, keyAES : string) : string {
+	let key = CryptoJS.enc.Utf8.parse(keyAES);
+	let srcs = CryptoJS.enc.Utf8.parse(plainText);
+
+	let encrypted = CryptoJS.AES.encrypt(srcs, key, {
+		mode: CryptoJS.mode.ECB,
+		padding: CryptoJS.pad.Pkcs7
+	});
+	return encrypted.toString();
+}
+
+// AES对称解密
+export const aesDecryptSync = function (encryptedBase64 : string, keyAES : string) : string {
+	let key = CryptoJS.enc.Utf8.parse(keyAES);
+
+	let decrypt = CryptoJS.AES.decrypt(encryptedBase64, key, {
+		mode: CryptoJS.mode.ECB,
+		padding: CryptoJS.pad.Pkcs7
+	});
+	let decryptedStr = decrypt.toString(CryptoJS.enc.Utf8);
+	return decryptedStr.toString();
+}
+
+// AES CBC对称加密
+export const aesCBCEncryptSync = function (plainText : string, keyAES : string, ivStr : string) : string {
+	let key = CryptoJS.enc.Utf8.parse(keyAES);
+	let iv = CryptoJS.enc.Utf8.parse(ivStr);
+	let srcs = CryptoJS.enc.Utf8.parse(plainText);
+
+	let encrypted = CryptoJS.AES.encrypt(srcs, key, {
+		iv,
+		mode: CryptoJS.mode.CBC,
+		padding: CryptoJS.pad.Pkcs7
+	});
+	return encrypted.toString();
+}
+
+// AES CBC对称解密
+export const aesCBCDecryptSync = function (encryptedBase64 : string, keyAES : string, ivStr : string) : string {
+	let key = CryptoJS.enc.Utf8.parse(keyAES);
+	let iv = CryptoJS.enc.Utf8.parse(ivStr);
+
+	let decrypt = CryptoJS.AES.decrypt(encryptedBase64, key, {
+		iv,
+		mode: CryptoJS.mode.CBC,
+		padding: CryptoJS.pad.Pkcs7
+	});
+	let decryptedStr = decrypt.toString(CryptoJS.enc.Utf8);
+	return decryptedStr.toString();
+}
+
+// SHA1加密
+export const sha1Sync = function (str : string) : string {
+	let sha1 = CryptoJS.SHA1(str);
+	return sha1.toString();
+}
+
+// SHA256加密
+export const sha256Sync = function (str : string) : string {
+	let sha256 = CryptoJS.SHA256(str);
+	return sha256.toString();
+}
+
+// hmacSHA1加密
+export const hmacSHA1Sync = function (plaintext : string, key : string) : string {
+	let res = CryptoJS.HmacSHA1(plaintext, key)
+	return res.toString();
+}
+
+export interface IJSEncryptOptions {
+    default_key_size?: string;
+    default_public_exponent?: string;
+    log?: boolean;
+}
+// RSA非对称加密
+export const rsaEncryptSync = function (paramString : string, publicKey : string) : string {
+	let encrypt = new JSEncrypt();
+	encrypt.setPublicKey(publicKey);
+	let pwd = encrypt.encrypt(paramString, 'pkcs1padding');
+	if(!pwd) {
+		return ""
+	}
+	return pwd;
+}
+
+// RSA非对称解密
+export const rsaDecryptSync = function (paramString : string, privateKey: string) : string {
+	let encrypt = new JSEncrypt();
+	encrypt.setPrivateKey(privateKey);
+	let decrypted = encrypt.decrypt(paramString);
+	if(!decrypted) {
+		return ""
+	}
+	return decrypted;
+}

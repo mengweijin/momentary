@@ -1,3 +1,114 @@
+## 4.5.48
+fix: 修复 up-tabs-pro、up-novel-reader Vue 版微信小程序编译报错
+
+- up-tabs-pro（.vue）：移除原生 view 上不受小程序编译器支持的对象形式 v-bind="$attrs"，修复 v-bind="" is not supported. 报错。
+- 同时恢复默认根节点属性继承，保留 H5 下 id、data-*、外部 class/style 及原生事件绑定；组件 props、事件、插槽 API 与 .uvue 实现保持不变。
+- up-novel-reader（.vue）：error 插槽改为显式传递 error、retry，修复对象形式 v-bind 导致的微信小程序编译报错；保留错误对象、重试回调、默认错误提示和重试按钮，插槽 API 与 .uvue 实现不变。
+
+## 4.5.47
+fix: 修复导航栏胶囊遮挡、条码画布初始化时序并补齐类型导出
+
+- up-navbar（.vue / .uvue）：新增默认开启的 avoidCapsule，微信小程序右侧文字、图标及插槽内容自动避让原生胶囊；设置 :avoidCapsule="false" 可恢复原布局，其他平台和胶囊信息无效时保持原布局。同步 JS/UTS 默认配置、props 和类型声明。
+- up-barcode：.vue 画布渲染、.uvue 图片生成及导出在创建或查询画布前等待组件宿主视图完成更新，避免全局 nextTick 已结束但画布节点或尺寸尚未提交；.uvue 默认 View 条码展示逻辑不变。
+- 类型入口：补齐 FormValidateError、NumberBoxFocusPayload、NumberBoxChangePayload、PaginationProps、VideoEpisode、VideoAd、VideoDanmu、VideoProps 共 8 个已有类型的导出，修复包入口 import type 报未导出成员及类型导出一致性校验失败。
+
+## 4.5.46
+fix: 修复 uni-app Vue3（.js/.vue）侧无法编译与运行的 12 处问题，并补全 168 处导入扩展名
+
+uview-ultra 是双实现：`.uts`/`.uvue` 走 uni-app x 编译链，`.js`/`.vue` 走 uni-app Vue3 编译链。此前只有 uni-app x 工程，`.js`/`.vue` 那一套从未进入任何编译链，缺陷只能等用户反馈。本次搭了独立的 uni-app Vue3 工程做全量编译门禁与 126 个示例页逐页运行时验证，并修掉暴露出的问题。
+
+Vue3 侧编译期问题：
+- `libs/config/props.js`：补回 `registerComponentProps()`。3.x 有这个 API，4.x 移植时漏了，而 `up-calendar-strip` / `up-guide` 的 `props.js` 都在 import 它，构建报 `does not provide an export named 'registerComponentProps'`
+- `up-grid/props.js`：`crtProp` 未声明（漏了 `const crtProp = defProps.grid`）
+- `up-action-sheet.vue` / `up-text.vue`：`defineProps` 里展开了局部 const `buttonProps`，而 defineProps 的参数会被 hoist 到 setup 之外，编译器直接拒绝，改为内联进字面量
+- `up-parse.vue`：`defineOptions` 里 `, components:` 与 `#ifdef MP-WEIXIN` 的 `options` 块共用同一个逗号，非小程序平台裁掉 options 后变成双逗号，编译报 `Unexpected token`
+- `libs/function/index.js`：补 `getDeviceInfo()` 与 `upGetRect()`。`.vue` 侧一直在 import，`.js` 侧却没有实现，构建报 `not exported by`
+- `up-album/props.js`：`defProps` 被换成了本地 `album.js`，`defProps.image` 为 undefined，读 `.shape` 直接抛。改回 `registerComponentProps(AlbumDefaultProps)`，与 3.x 一致
+- `index.js`：去掉 `export default` 里未定义的 `UpNoNetwork`（`index.uts` 与 3.x 都不导出它，运行期直接报 `UpNoNetwork is not defined`）；H5 分支不再 glob `./components/up-*/up-*.uvue`，Vue3 编译器不认识 uvue 语法
+
+Vue3 侧运行期问题：
+- `up-tabbar.vue`：`children` 里可能混进非 `tabbar-item` 的实例，调用 `updateFromParent` 前加 `typeof` 判断（`up-steps.vue` 本来就有这个防御）
+- `up-list-item.vue`：`children` 是父级 `up-list` 共用的，里面会混进 `up-cell`，取 `lastChild.rect` 前判空，并按 uvue 侧语义补 `?? 0`
+- `up-qrcode.vue`：`Object.assign(Object.create(componentProxy), ...)` 会走 `[[Set]]` 命中 Vue 组件实例代理的 set 陷阱并抛 `'set' on proxy: trap returned falsish`，改用 `Object.defineProperties`
+- `up-poster.vue`：`rpx2px` 全库不存在，改用 `uni.upx2px`
+
+影响面最大的一类是导入解析：uni-app 的 `resolve.extensions` 是 `['.uts', '.mjs', '.js', ...]`，`.uts` 排在第一位，而且非 uni-app x 构建也是这个顺序（见 `@dcloudio/uni-cli-shared` 的 `COMMON_EXTENSIONS`）。凡是「同名 `.js` 与 `.uts` 并存、导入又省略扩展名」的地方，在 Vue3 工程里都会解析到 `.uts`，被 esbuild 当 UTS 解析而失败；目录导入（如 `libs/i18n`）会解析到 `index.uts`，运行期直接报 `UTSJSONObject is not defined`。本次给 `.js`/`.vue` 里 168 处相对导入补全了显式 `.js` 扩展名，涉及 96 个文件。
+
+验证方式：新增独立的 uni-app Vue3 工程（`ly-ultra-ui/uview-ultra-uni-app`），六段门禁——示例页漂移 / 导入解析 / SFC 全量编译 / no-undef / 模块加载冒烟 / 真实 `uni build`（H5），全绿；126 个示例页 Playwright 逐页运行时冒烟全部通过。
+
+## 4.5.45
+feat: 新增 up-video 视频播放器，并适配 uni-app-x 蒸汽模式（HBuilderX 5.26）
+
+HBuilderX 5.26 起 uni-app-x 进入蒸汽模式（vapor），运行期与编译器均有变化：不再支持 \p{...} Unicode 属性转义、scroll-view 移除 scroll-x/scroll-y/enable-flex，部分运行期 API 与 UTS 注解处理方式也发生改变。本次一并修复由此暴露的组件缺陷，并对齐 uview-plus 3.8.127 / 3.8.128 的上游修复。
+
+新增：
+- up-video（对齐 uview-plus u-video）：自绘控制层的播放器，支持倍速、音量、封面、锁屏、返回、全屏
+- video-danmaku 弹幕层：归一化、时间游标二分查找、轨道分配，支持滚动 / 顶部 / 底部三种模式
+- video-slider：进度与音量共用的拖动条；配套选集面板、贴片广告（前置 / 暂停 / 后置）与暂停贴片
+- 注册进 props 配置、10 种语言 i18n、types/comps/video.d.ts；新增示例页 pages/componentsD/video
+- 说明：uni-app-x 的 video 为原生组件无法承载子节点，控制层改用同级绝对定位覆盖层；进全屏请走原生全屏按钮
+
+蒸汽模式（vapor）适配与缺陷修复：
+- marked-uts：\p{P}\p{S} 等 Unicode 属性转义改为等价 ASCII 字面量字符类（设备 JS 引擎不支持会直接 SyntaxError 白屏），并保留 u 标志
+- marked-uts/Tokenizer：@Suppress 注解补 #ifndef VUE3-VAPOR 守卫，修复 Suppress is not defined
+- 组件模板不再遮蔽全局 $up（index.uts 注册的 UPUtils 实例）：移除 import * as $up，改为直接调用 addUnit / addStyle / getPx
+- up-loading-icon：删除触发 vue.useVaporCssVars 的死代码 $radius: v-bind(size)px，修复按钮页等打开即报错
+- scroll-view：迁移到新版 direction（scroll-x/scroll-y/enable-flex 已移除），涉及 up-table2 / up-list / up-choose / up-cascader / up-cate-tab / up-calendar / up-action-sheet / up-goods-sku / up-virtual-list / up-pull-refresh / up-novel-reader / up-dragsort / up-dropdown-item 等；表格列固定随之恢复生效
+- up-checkbox：disabled / labelDisabled 同时识别布尔与字符串，修复 <up-checkbox disabled> 禁用无效
+- up-row / up-gap / up-card / up-dropdown-item：默认值取值函数与配置类型不匹配（对字符串配置用 getNumber/getBoolean）导致 null，已修正并补显式默认值
+- up-button：textSize 已含 px 又拼接一次导致字号异常（约 11px → 14px）
+- up-dropdown-item：scroll-view 被误写为 view 且带 scroll-y="false"，已改回 <scroll-view direction="vertical">
+- up-dropdown-item / up-grid-item / useUltraUI：跨组件读取 $data['children'] 在新版下为 undefined，改用父组件暴露的 $callMethod('getChildren')
+- up-textarea：placeholder-style 统一传字符串、新增 cursor 数字计算（-1 表示不指定），修复原生类型校验告警与 ClassCastException
+- up-tabbar：内联样式不再拼接 !important（新版不支持），修复 border-*-color 非法值
+- up-short-video：传给 up-slider 的 innerStyle 改为 UTSJSONObject，修复 prop 类型校验告警
+- libs/function/test.uts：修正 date() 判断反转（数字时间戳被误判非法），修复 up-text 日期模式误报
+- up-novel-reader：readPersistedState 对空串 / 非法 JSON 加保护，避免 JSON.parse 抛原生异常
+- up-dropdown / up-lazy-load：修正 translate3D / transition3d 拼写
+
+对齐 uview-plus 3.8.127 / 3.8.128：
+- up-slider：点击轨道时不再丢弃 updateValue 返回值，直接触发 change；补 sliderRect 宽度为 0 的兜底
+- up-datetime-picker：空值不再被夹取成 minDate / minHour:minMinute，外部清空后输入框保持为空；confirm 时先按各列当前显示值取真值；getBoundary / updateIndexs 补空值兜底，避免 Invalid Date 产生 NaN
+- up-car-keyboard：补「警」字（省份切分 30~37）；up-car-keyboard / up-number-keyboard 退格键改为 tap 单删 + touchstart 600ms 长按递推，短按不再连删，PC 端浏览器无 touch 时也可删除
+- up-parse：parser.js 支持 quill 的 align-left / align-right / justify class
+- up-calendar：onScroll 在各月份 top 未测量出来时不再把副标题钉到最后一个月；scrollIntoDefaultMonth 同步更新 monthIndex
+- up-collapse-item：init() 在父组件 value 为 null / undefined 时不再重置已展开状态；展开动画结束后把高度交还内容，避免异步变高的内容被裁切；快速连点只认最后一次动画回调
+- up-cate-tab：leftMenuStatus 仅在选中项真正变化时同步 update:current，消除重复通知
+- up-textarea：confirmType 默认改为 return（回车换行，与原生一致），新增 confirmHold 属性
+- up-cell：必填星号改用真实 <text> 节点渲染（原 :before 伪元素在 nvue / 小程序下不显示且通栏布局会跑出屏幕）；补上此前完全缺失的 required 属性；修正 aclass= 笔误
+- up-upload：H5 下 chooseVideo 返回的真实 File 对象透传给 uni.uploadFile，修复部分 webview 读 blob: 得到空内容导致上传失败（#801）
+
+小程序相关修复：
+- up-search：placeholder-class 改为非 scoped 样式块 + CSS 变量下发颜色，解决 scoped 类名匹配不到小程序内部 placeholder 节点的问题
+- up-icon：字体加载失败后由定时器重试有限次数，不再立刻释放请求锁（#844）
+- 解决 mp-weixin 编译挂死：up-pull-refresh / up-novel-reader 中 uni-app-x 不支持的 v-bind 改为显式属性传递
+
+示例与其它：
+- 移除 90 个示例页根节点的 App 专用 scroll-view 包装层（蒸汽模式下页面本身可滚动，保留会触发嵌套滚动告警）
+- 修复示例页中的 HTML / SVG 标签：empty 页 <div> 改 <view>，slider 页内联 <svg> 改用 up-icon
+- types：新增 pagination.d.ts 并在 comps.d.ts 注册，补齐 numberBox / form 的类型与事件载荷
+
+## 4.5.44
+fix: 修复 up-markdown 在 uni-app-x 4.72+（含蒸汽模式）Android 端编译报错，以及 up-signature 的 UTS 编译错误
+
+marked-uts 为兼容旧版 uni-app-x Android 端的 JS 正则引入了原生模块 io.dcloud.uts.jsreg.JSReg，该模块在 uni-app-x 4.72+ 已移除，但相关 import 仅用 #ifdef APP-ANDROID 包裹、未按版本裁剪，导致新版编译时无法解析（Could not resolve "io.dcloud.uts.jsreg.JSReg"），markdown 解析为空、页面空白。同时 up-signature 的 uvue 实现存在 ref 先于使用声明、NodeInfo 坐标可空赋值两处 UTS 编译错误，导致 App-Android 端无法编译通过。
+
+- marked-uts：Tokenizer.uts 删除未使用的 JSReg import；rules.uts 的 callJSReg import 与 utssdk/app-android/index.uts 的 JSReg import、callJSReg 定义统一补上 #ifdef uniVersion < 4.72 版本条件，4.72+ 走原生正则分支，旧版（< 4.72）行为保持不变
+- up-signature：rectLeft / rectTop 两个 ref 移到 getTouchPoint 之前声明，修复 UTS “找不到名称 rectLeft/rectTop” 报错
+- up-signature：rect.left / rect.top 为可空类型（Number?），改用 normalizeNumber 兜底赋值，修复与 Number 的类型不匹配
+- 仅影响 App-Android，H5 / 小程序 / 鸿蒙 / uni-app-x 其它端不受影响
+
+## 4.5.43
+feat: 新增 up-flex 弹性布局容器组件
+
+新增 up-flex 弹性布局容器，用于快速搭建 flex 布局，替代手写 display:flex 样式；同时提供 Vue 与 uvue（uni-app-x）两套实现，覆盖 App / H5 / 小程序 / 鸿蒙。
+
+- 新增 up-flex 组件：通过 direction / justify / align / wrap / gap 属性控制主轴方向、主轴与交叉轴对齐、是否换行以及子元素间距
+- justify 支持 start / end 简写，内部自动映射为 flex-start / flex-end，与 CSS 原生取值兼容
+- gap 支持数字或字符串，非 0 时自动补单位；默认 direction=row、justify=flex-start、align=stretch、wrap=false、gap=0
+- 提供默认插槽承载子元素，支持 click 事件与 customStyle 自定义样式
+- 全部默认值集中在 libs/config/props.js，可通过全局配置统一覆盖
+
 ## 4.5.42
 fix: 修复签名组件在 App 端无法绘制、笔迹闪退，并补齐 up-canvas 画布能力
 

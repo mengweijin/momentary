@@ -13,11 +13,12 @@
 </template>
 
 <script setup>
+	import { initS3, listObjects, getObject, deleteObject } from '@/uni_modules/vt-s3-api';
 	const loading = ref(true);
 
 	setTimeout(() => {
 		loading.value = false
-	}, 500)
+	}, 5000)
 </script>
 
 <style lang="scss">

@@ -12,7 +12,7 @@
             :autoHeight="autoHeight"
             :fixed="fixed"
             :cursorSpacing="cursorSpacing"
-            :cursor="cursor"
+            :cursor="cursorValue"
             :showConfirmBar="showConfirmBar"
             :selectionStart="selectionStart"
             :selectionEnd="selectionEnd"
@@ -21,6 +21,7 @@
             :holdKeyboard="holdKeyboard"
             :maxlength="maxlength"
             :confirm-type="confirmType"
+            :confirm-hold="confirmHold"
             :ignoreCompositionEvent="ignoreCompositionEvent"
             @focus="onFocus"
             @blur="onBlur"
@@ -56,7 +57,8 @@ import { addStyle, addUnit, deepMerge, formValidate } from '../../libs/function/
  * @property {String}			    placeholderClass		指定placeholder的样式类，注意页面或组件的style中写了scoped时，需要在类名前写/deep/ （ 默认 'input-placeholder' ）
  * @property {String | Object}	    placeholderStyle		指定placeholder的样式，字符串/对象形式，如"color: red;"
  * @property {String | Number}		height					输入框高度（默认 70 ）
- * @property {String}				confirmType				设置键盘右下角按钮的文字，仅微信小程序，App-vue和H5有效（默认 'done' ）
+ * @property {String}				confirmType				设置键盘右下角按钮的文字。为 'return' 时回车换行，取 'done'、'go'、'next'、'search'、'send' 时回车触发 confirm 且不换行（默认 'return' ）
+ * @property {Boolean}				confirmHold				点击键盘右下角按钮时是否保持键盘不收起，confirmType 非 'return' 时有效（默认 false ）
  * @property {Boolean}				disabled				是否禁用（默认 false ）
  * @property {Boolean}				count					是否显示统计字数（默认 false ）
  * @property {Boolean}				focus					是否自动获取焦点，nvue不支持，H5取决于浏览器的实现（默认 false ）
@@ -122,6 +124,10 @@ const props = defineProps({
 	confirmType: {
 		type: String,
 		default: defProps.getString('textarea.confirmType')
+	},
+	confirmHold: {
+		type: Boolean,
+		default: defProps.getBoolean('textarea.confirmHold')
 	},
 	// 是否禁用
 	disabled: {
@@ -296,9 +302,25 @@ const fieldStyle = computed((): UTSJSONObject => {
     } as UTSJSONObject
 })
 
-const placeholderStyleValue = computed((): UTSJSONObject => {
-    return addStyle(props.placeholderStyle) as UTSJSONObject
+const placeholderStyleValue = computed((): string => {
+// 原生 textarea 的 placeholder-style 只接受字符串，这里统一转成 CSS 字符串
+return addStyle(props.placeholderStyle, 'string') as string
 })
+
+const cursorValue = computed((): number => {
+
+	// 原生 textarea 的 cursor 只接受数字，-1 表示不指定位置
+
+	const c = props.cursor
+
+	if (typeof c === 'number') return c
+
+	const parsed = parseInt(c.toString())
+
+	return isNaN(parsed) ? -1 : parsed
+
+})
+
 
 const countStyle = computed((): UTSJSONObject => {
     return {
@@ -361,6 +383,7 @@ defineExpose({
     textareaStyle,
     fieldStyle,
     placeholderStyleValue,
+    cursorValue,
     countStyle,
     normalizeValue,
     setFormatter,

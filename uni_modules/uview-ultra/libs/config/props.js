@@ -31,6 +31,7 @@ import CountTo from '../../components/up-count-to/countTo.js'
 import DatetimePicker from '../../components/up-datetime-picker/datetimePicker.js'
 import Divider from '../../components/up-divider/divider.js'
 import Empty from '../../components/up-empty/empty.js'
+import Flex from '../../components/up-flex/flex.js'
 import Form from '../../components/up-form/form.js'
 import GormItem from '../../components/up-form-item/formItem.js'
 import Gap from '../../components/up-gap/gap.js'
@@ -93,13 +94,14 @@ import Toast from '../../components/up-toast/toast.js'
 import Toolbar from '../../components/up-toolbar/toolbar.js'
 import Tooltip from '../../components/up-tooltip/tooltip.js'
 import Transition from '../../components/up-transition/transition.js'
+import Video from '../../components/up-video/video.js'
 import Upload from '../../components/up-upload/upload.js'
 
 const {
     color
 } = config
 
-export default {
+const props = {
     ...ActionSheet,
     ...Album,
     ...Alert,
@@ -126,6 +128,7 @@ export default {
     ...DatetimePicker,
     ...Divider,
     ...Empty,
+    ...Flex,
     ...Form,
     ...GormItem,
     ...Gap,
@@ -188,5 +191,20 @@ export default {
     ...Toolbar,
     ...Tooltip,
     ...Transition,
+    ...Video,
     ...Upload
 }
+
+/**
+ * 把某个组件的默认 props 注册进全局 props 表，供组件自己的 props.js 读取。
+ * 与 uview-plus 3.x 的同名 API 行为一致：合并进全局表并返回全局表，
+ * 这样全局 setConfig({ props }) 的覆盖依然生效。
+ */
+export function registerComponentProps(defaultProps = {}) {
+    Object.keys(defaultProps || {}).forEach((key) => {
+        props[key] = Object.assign({}, props[key], defaultProps[key])
+    })
+    return props
+}
+
+export default props

@@ -1,5 +1,5 @@
 import { useStore } from '@/uni_modules/vt-file-store/composables/use-store'
-import type { S3Config } from '@/uni_modules/vt-aws-s3/utssdk/interface.uts'
+import type { S3Config } from '@/uni_modules/vt-s3/utssdk/interface.uts'
 
 export type OssPath = {
 	photo : string

@@ -1,0 +1,19 @@
+/* 同步函数定义 */
+export type CommonSync = (str : string) => string
+
+export type sm4Sync = (str : string, key : string) => string
+
+export type ivSync = (str : string, key : string, iv: string) => string
+
+export type sm2Validate = (str : string, pub : string, sign: string) => boolean
+
+// #ifdef APP-ANDROID
+import KeyPair from 'java.security.KeyPair';
+
+export type rsaSync = (str : string, key : KeyPair, type : number) => string
+
+export type rsaCommonSync = (str : string, key : KeyPair) => string
+
+export type rsaValidate = (str : string, str2 : string, key : KeyPair) => boolean
+
+// #endif

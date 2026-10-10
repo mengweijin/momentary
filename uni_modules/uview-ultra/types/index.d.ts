@@ -43,8 +43,8 @@ declare module 'uview-ultra' {
 		digits(value: number): boolean;
 		/** 验证身份证号码 */
 		idCard(value: string | number): boolean;
-		/** 是否车牌号 */
-		carNo(value: string): boolean;
+		/** 是否车牌号，空值直接返回false */
+		carNo(value: string | null): boolean;
 		/** 金额,只允许2位小数 */
 		amount(value: string | number): boolean;
 		/** 校验是否是中文 */
@@ -256,6 +256,7 @@ declare module 'uview-ultra' {
 	export type DividerProps = import('./comps/divider')['DividerProps']
 	export type EmptyProps = import('./comps/empty')['EmptyProps']
 	export type EmptySlots = import('./comps/empty')['EmptySlots']
+	export type FormValidateError = import('./comps/form')['FormValidateError']
 	export type FormProps = import('./comps/form')['FormProps']
 	export type FormRef = typeof import('./comps/form')['FormRef']
 	export type FormItemProps = import('./comps/formItem')['FormItemProps']
@@ -300,10 +301,13 @@ declare module 'uview-ultra' {
 	export type NotifyRef = typeof import('./comps/notify')['NotifyRef']
 	export type NovelReaderProps = import('./comps/novelReader')['NovelReaderProps']
 	export type NovelReaderSlots = import('./comps/novelReader')['NovelReaderSlots']
+	export type NumberBoxFocusPayload = import('./comps/numberBox')['NumberBoxFocusPayload']
+	export type NumberBoxChangePayload = import('./comps/numberBox')['NumberBoxChangePayload']
 	export type NumberBoxProps = import('./comps/numberBox')['NumberBoxProps']
 	export type NumberBoxSlots = import('./comps/numberBox')['NumberBoxSlots']
 	export type OverlayProps = import('./comps/overlay')['OverlayProps']
 	export type OverlaySlots = import('./comps/overlay')['OverlaySlots']
+	export type PaginationProps = import('./comps/pagination')['PaginationProps']
 	export type ParseProps = import('./comps/parse')['ParseProps']
 	export type PickerProps = import('./comps/picker')['PickerProps']
 	export type PickerRef = typeof import('./comps/picker')['PickerRef']
@@ -348,6 +352,10 @@ declare module 'uview-ultra' {
 	export type UploadProps = import('./comps/upload')['UploadProps']
 	export type UploadSlots = import('./comps/upload')['UploadSlots']
 	export type UploadRef = typeof import('./comps/upload')['UploadRef']
+	export type VideoEpisode = import('./comps/video')['VideoEpisode']
+	export type VideoAd = import('./comps/video')['VideoAd']
+	export type VideoDanmu = import('./comps/video')['VideoDanmu']
+	export type VideoProps = import('./comps/video')['VideoProps']
 	// ---- 组件类型结束 ----
 
 	global {

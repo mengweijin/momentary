@@ -1,5 +1,5 @@
 <template>
-	<view class="up-tabs-pro" :class="customClass" :style="addStyle(customStyle)" v-bind="$attrs">
+	<view class="up-tabs-pro" :class="customClass" :style="addStyle(customStyle)">
 		<up-tabs
 			:list="safeList"
 			:keyName="keyName"
@@ -54,12 +54,11 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { commonProps } from '../../libs/composable/useUltraUI'
-import { addStyle } from '../../libs/function/index'
+import { commonProps } from '../../libs/composable/useUltraUI.js'
+import { addStyle } from '../../libs/function/index.js'
 
 defineOptions({
-	name: 'up-tabs-pro',
-	inheritAttrs: false
+	name: 'up-tabs-pro'
 })
 
 const props = defineProps({

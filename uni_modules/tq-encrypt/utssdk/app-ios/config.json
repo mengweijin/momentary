@@ -1,0 +1,21 @@
+{
+	"deploymentTarget": "13",
+	"dependencies-pods": [
+		{
+			"name": "CryptoSwift",
+			"version": "~> 1.8.2"
+		},
+		{
+			"name": "GMObjC",
+			"version": "3.3.8"
+		},
+		{
+			"name": "GMOpenSSL",
+			"version": "2.2.9"
+		},
+		{
+			"name": "SwiftyRSA",
+			"version": "1.7.0"
+		}
+	]
+}

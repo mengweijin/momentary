@@ -49,7 +49,7 @@
 <script setup>
 import { getCurrentInstance, nextTick, onMounted, ref, watch } from 'vue'
 import { commonProps } from '../../libs/composable/useUltraUI.js'
-import { addUnit, sleep, upCreateIntersectionObserver } from '../../libs/function/index'
+import { addUnit, sleep, upCreateIntersectionObserver } from '../../libs/function/index.js'
 
 defineOptions({
 	name: 'up-cate-tab',
@@ -127,8 +127,11 @@ function getElRect(elClass, dataVal) {
 }
 
 async function leftMenuStatus(index) {
-	innerCurrent.value = index
-	emit('update:current', index)
+	// 仅在选中项真正变化时才同步父组件，否则滚动过程中每次都会重复通知
+	if (innerCurrent.value != index) {
+		innerCurrent.value = index
+		emit('update:current', index)
+	}
 	if (menuHeight.value == 0 || menuItemHeight.value == 0) {
 		await getElRect('up-cate-tab__menu-scroll-view', 'menuHeight')
 		await getElRect('up-cate-tab__item', 'menuItemHeight')

@@ -30,48 +30,39 @@ export function date(value: any): boolean {
   }
 
   // 将值转换为字符串进行后续处理
-  let valueStr:string = value.toString();
+  const valueStr: string = value.toString();
 
-  // 判断是否是数字类型的时间戳
-  if (!number(valueStr)) {
-    // 检查是否是有效的秒级或毫秒级时间戳
-    if (valueStr.length == 10 || valueStr.length == 13) {
-      const date = new Date(valueStr);
-      return !isNaN(date.getTime());
+  // 纯数字：按 10 位秒级 / 13 位毫秒级时间戳判断
+  if (number(valueStr)) {
+    if (valueStr.length != 10 && valueStr.length != 13) {
+      return false;
     }
-    return false;
+    const date = new Date(parseFloat(valueStr));
+    return !isNaN(date.getTime());
   }
 
   // 检查是否为有效日期字符串
-  //if (typeof value === "string") {
-    // 检查长度是否在合理范围内
-    if (valueStr.length < 10 || valueStr.length > 19) {
-      return false;
-    }
+  // 检查长度是否在合理范围内
+  if (valueStr.length < 10 || valueStr.length > 19) {
+    return false;
+  }
 
-    // 定义日期格式的正则表达式
-    const dateRegex =
-      /^\d{4}[-\/]\d{2}[-\/]\d{2}( \d{1,2}:\d{2}(:\d{2})?)?$/;
+  // 定义日期格式的正则表达式
+  const dateRegex =
+    /^\d{4}[-\/]\d{2}[-\/]\d{2}( \d{1,2}:\d{2}(:\d{2})?)?$/;
 
-    // 使用正则表达式匹配日期格式
-    if (!dateRegex.test(valueStr)) {
-      return false;
-    }
+  // 使用正则表达式匹配日期格式
+  if (!dateRegex.test(valueStr)) {
+    return false;
+  }
 
-    // 尝试将字符串转换为 Date 对象
-    const dateValue = new Date(valueStr);
+  // 尝试将字符串转换为 Date 对象
+  const dateValue = new Date(valueStr);
 
-    // 检查是否为有效日期
-    return !isNaN(dateValue.getTime());
-  //}
-
-  // 如果不是数字或字符串类型，返回 false
-  // return false;
+  // 检查是否为有效日期
+  return !isNaN(dateValue.getTime());
 }
 
-/**
- * 验证ISO类型的日期格式
- */
 export function dateISO(value: string): boolean {
     return /^\d{4}[\/\-](0?[1-9]|1[012])[\/\-](0?[1-9]|[12][0-9]|3[01])$/.test(value)
 }
@@ -110,15 +101,18 @@ export function idCard(value: string): boolean {
 /**
  * 是否车牌号
  */
-export function carNo(value: string): boolean {
+export function carNo(value: string | null): boolean {
+    // 空值（如表单字段默认为null）直接返回false，避免读取length时崩溃
+    if (value == null) return false
+    const text = value as string
     // 新能源车牌
     const xreg = /^[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼使领A-Z]{1}[A-Z]{1}(([0-9]{5}[DF]$)|([DF][A-HJ-NP-Z0-9][0-9]{4}$))/
     // 旧车牌
     const creg = /^[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼使领A-Z]{1}[A-Z]{1}[A-HJ-NP-Z0-9]{4}[A-HJ-NP-Z0-9挂学警港澳]{1}$/
-    if (value.length === 7) {
-        return creg.test(value)
-    } if (value.length === 8) {
-        return xreg.test(value)
+    if (text.length === 7) {
+        return creg.test(text)
+    } if (text.length === 8) {
+        return xreg.test(text)
     }
     return false
 }

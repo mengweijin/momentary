@@ -3,7 +3,7 @@
 		<view class="up-cate-tab__wrap">
 			<scroll-view
 				class="up-cate-tab__view up-cate-tab__menu-scroll-view"
-				scroll-y
+				direction="vertical"
 				scroll-with-animation
 				:scroll-top="scrollTop"
 				:scroll-into-view="itemId"
@@ -21,7 +21,7 @@
 				</view>
 			</scroll-view>
 			<scroll-view
-				scroll-y
+				direction="vertical"
 				scroll-with-animation
 				class="up-cate-tab__right-box"
 				:scroll-top="scrollRightTop"
@@ -182,8 +182,11 @@ const leftMenuStatus = (index: number): void => {
 	const list = getTabList()
 	if (list.length == 0) return
 	const nextIndex = Math.max(0, Math.min(index, list.length - 1))
-	innerCurrent.value = nextIndex
-	emit('update:current', nextIndex)
+	// 仅在选中项真正变化时才同步父组件，否则滚动过程中每次都会重复通知
+	if (innerCurrent.value != nextIndex) {
+		innerCurrent.value = nextIndex
+		emit('update:current', nextIndex)
+	}
 	if (menuHeight.value == 0) {
 		getElRect('up-cate-tab__menu-scroll-view', 'menuHeight')
 	}
@@ -241,9 +244,8 @@ const swichMenu = (index: number): void => {
 		scrollRightTop.value = 0
 	}
 	if (index == innerCurrent.value) return
-	innerCurrent.value = index
+	// 由leftMenuStatus统一设置并通知，避免这里再发一次造成重复通知
 	leftMenuStatus(index)
-	emit('update:current', index)
 }
 
 const deferSwitch = (index: number): void => {

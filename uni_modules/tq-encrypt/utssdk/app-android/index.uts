@@ -1,0 +1,255 @@
+/* 引入 interface.uts 文件中定义的变量 */
+import { CommonSync, sm4Sync, ivSync, rsaSync, rsaCommonSync, rsaValidate, sm2Validate, hexSync } from '../interface.uts';
+
+/**
+ * 引入三方库
+ */
+
+import MD5Util from 'cn.mtjsoft.lib_encryption.MD5.MD5Util';
+import Base64Util from 'cn.mtjsoft.lib_encryption.BASE64.Base64Util';
+import AESUtil from 'cn.mtjsoft.lib_encryption.AES.AESUtil';
+import Util from 'cn.mtjsoft.lib_encryption.utils.Util';
+import SHAUtil from 'cn.mtjsoft.lib_encryption.SHA.SHAUtil';
+import RSAUtil from 'cn.mtjsoft.lib_encryption.RSA.RSAUtil';
+import SM2Util from 'cn.mtjsoft.lib_encryption.SM2.SM2Util';
+import SM3Util from 'cn.mtjsoft.lib_encryption.SM3.SM3Util';
+import SM4Util from 'cn.mtjsoft.lib_encryption.SM4.SM4Util';
+import KeyPair from 'java.security.KeyPair';
+import Cipher from 'javax.crypto.Cipher';
+import IvParameterSpec from 'javax.crypto.spec.IvParameterSpec';
+import SecretKeySpec from 'javax.crypto.spec.SecretKeySpec';
+import Mac from 'javax.crypto.Mac';
+
+/**
+ * 同步方法
+ *
+ * uni-app项目中（vue/nvue）调用示例：
+ * 1、引入方法声明 import { md5Sync,base64EncodeSync,base64DecodeSync } from "@/uni_modules/tq-encrypt"
+ * 2、方法调用 md5Sync('123456')  base64EncodeSync("212321")
+ *
+ * uni-app x项目（uvue）中调用示例：
+ * 1、引入方法及参数声明 import { md5Sync,base64EncodeSync,base64DecodeSync } from "@/uni_modules/tq-encrypt";
+ * 2、方法调用 md5Sync('123456')  base64DecodeSync("MjEyMzIx")
+ */
+
+// md5加密
+export const md5Sync : CommonSync = function (md5Str : string) : string {
+	const res : string = MD5Util.stringMD5(md5Str);
+	return res;
+}
+// base64加密
+export const base64EncodeSync : CommonSync = function (str : string) : string {
+	const res : string = Base64Util.encode(str.toByteArray());
+	return res;
+}
+
+// base64解密
+export const base64DecodeSync : CommonSync = function (str : string) : string {
+	const res : string = String(Base64Util.decode(str));
+	return res;
+}
+
+// AES对称加密
+export function aesEncryptSync(dataString : string, keyAES : string, isHex: boolean = false) : string {
+	if (isHex) {
+		const encrypt = AESUtil.encrypt(dataString.toByteArray(), Util.hexStr2Bytes(keyAES));
+		const res : string = Util.byte2HexStr(encrypt);
+		return res;
+	} else{
+		const byteContent = dataString.toByteArray();
+		const enCodeFormat = keyAES.toByteArray();
+		const secretKeySpec = new SecretKeySpec(enCodeFormat, "AES");
+		const cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
+		cipher.init(Cipher.ENCRYPT_MODE, secretKeySpec);
+		
+		const encryptedBytes = cipher.doFinal(byteContent);
+		
+		// 同样对加密后数据进行 base64 编码
+		return Base64Util.encode(encryptedBytes);
+	}
+}
+
+// AES对称解密
+export function aesDecryptSync(dataString : string, keyAES : string, isHex: boolean = false) : string {
+	if (isHex) {
+		const res : string = String(AESUtil.decrypt(Util.hexStr2Bytes(dataString), Util.hexStr2Bytes(keyAES)));
+		return res;
+	} else{
+		const encryptedBytes = Base64Util.decode(dataString);
+		const enCodeFormat = keyAES.toByteArray();
+		const secretKeySpec = new SecretKeySpec(enCodeFormat, "AES");
+		const cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
+		cipher.init(Cipher.DECRYPT_MODE, secretKeySpec);
+		
+		const result = cipher.doFinal(encryptedBytes);
+		
+		return String(result);
+	}
+}
+
+// SHA1加密
+export const sha1Sync : CommonSync = function (str : string) : string {
+	const res : string = SHAUtil.stringSHA(str, SHAUtil.SHA1);
+	return res;
+}
+
+// SHA256加密
+export const sha256Sync : CommonSync = function (str : string) : string {
+	const res : string = SHAUtil.stringSHA(str, SHAUtil.SHA256);
+	return res;
+}
+
+// SM2非对称加密密钥
+export const sm2KeyPair  = function () : string[] {
+	let arr: Array<string> = [];
+	const dom = SM2Util.generateKeyPair();
+	arr.push(Util.byte2HexStr(dom[0]))
+	arr.push(Util.byte2HexStr(dom[1]))
+	return arr;
+}
+// 国产SM2非对称公钥加密
+export const sm2EncryptSync : sm4Sync = function (dataString : string, publicKey : string) : string {
+	const encryptByPublicKey = SM2Util.encrypt(Util.hexStr2Bytes(publicKey), dataString.toByteArray());
+	return Util.byte2HexStr(encryptByPublicKey);
+}
+// 国产SM2非对称私钥解密
+export const sm2DecryptSync : sm4Sync = function (dataString : string, privateKey : string) : string {
+	return String(SM2Util.decrypt(Util.hexStr2Bytes(privateKey), Util.hexStr2Bytes(dataString)));
+}
+// sm2签名
+export const sm2PubSignSync : sm4Sync = function (dataString : string, privateKey : string) : string {
+	const sign = SM2Util.sign(Util.hexStr2Bytes(privateKey), Util.hexStr2Bytes(dataString));
+	return Util.byte2HexStr(sign);
+}
+// sm2验签
+export const sm2PubSignValSync : sm2Validate = function (dataString : string, publicKey : string, sign : string) : boolean {
+	const verifySign = SM2Util.verifySign(Util.hexStr2Bytes(publicKey), Util.hexStr2Bytes(dataString), Util.hexStr2Bytes(sign));
+	return verifySign;
+}
+
+// 国产SM3加密
+export const sm3EncryptSync : CommonSync = function (dataString : string) : string {
+	const res : string = SM3Util.encryptInner(dataString);
+	return res;
+}
+
+// 国产SM4CBC加密
+export const sm4CBCEncryptSync : ivSync = function (dataString : string, keySM4 : string, iv: string) : string {
+	const res : string = Util.byte2HexStr(SM4Util.encrypt(dataString.toByteArray(), Util.hexStr2Bytes(keySM4), SM4Util.SM4_CBC_PKCS5, Util.hexStr2Bytes(iv)))
+	return res;
+}
+
+// 国产SM4ECB加密
+export const sm4ECBEncryptSync : sm4Sync = function (dataString : string, keySM4 : string) : string {
+	const res : string = Util.byte2HexStr(SM4Util.encrypt(dataString.toByteArray(), Util.hexStr2Bytes(keySM4), SM4Util.SM4_ECB_PKCS5, null))
+	return res;
+}
+
+// 国产SM4CBC解密
+export const sm4CBCDecryptSync : ivSync = function (dataString : string, keySM4 : string, iv: string) : string {
+	const res : string = String(SM4Util.decrypt(Util.hexStr2Bytes(dataString), Util.hexStr2Bytes(keySM4), SM4Util.SM4_CBC_PKCS5, Util.hexStr2Bytes(iv)))
+	return res;
+}
+
+// 国产SM4ECB解密
+export const sm4ECBDecryptSync : sm4Sync = function (dataString : string, keySM4 : string) : string {
+	const res : string = String(SM4Util.decrypt(Util.hexStr2Bytes(dataString), Util.hexStr2Bytes(keySM4), SM4Util.SM4_ECB_PKCS5, null))
+	return res;
+}
+
+// RSA非对称加密
+export const getKeyPair = function () : KeyPair {
+	return RSAUtil.generateRSAKeyPair();
+}
+// 生成KeyPair密钥
+export function generateKeyPair(pubStr:string,privateStr:string): KeyPair{
+	const publicKey = RSAUtil.getPublicKey(Util.hexStr2Bytes(pubStr))
+	const privateKey = RSAUtil.getPrivateKey(Util.hexStr2Bytes(privateStr))
+	return KeyPair(publicKey,privateKey)
+}
+
+export const rsaEncryptSync : rsaSync = function (dataString : string, keyPair : KeyPair, type : number) : string {
+	let res : string;
+	if (type == 1) {
+		res = Util.byte2HexStr(RSAUtil.encryptByPublicKey(dataString.toByteArray(), keyPair.public))
+	} else {
+		res = Util.byte2HexStr(RSAUtil.encryptByPrivateKey(dataString.toByteArray(), keyPair.private))
+	}
+	return res;
+}
+// RSA非对称解密
+export const rsaDecryptSync : rsaSync = function (dataString : string, keyPair : KeyPair, type : number) : string {
+	let res : string;
+	if (type == 1) {
+		res = String(RSAUtil.decryptByPublicKeyKey(Util.hexStr2Bytes(dataString), keyPair.public))
+	} else {
+		res = String(RSAUtil.decryptByPrivateKey(Util.hexStr2Bytes(dataString), keyPair.private))
+	}
+	return res;
+}
+
+// RSA SHA256签名
+export const rsaSHA256PrivateSync : rsaCommonSync = function (dataString : string, keyPair : KeyPair) : string {
+	const res : string = Util.byte2HexStr(RSAUtil.signWithSHA256(dataString.toByteArray(), keyPair.private))
+	return res;
+}
+
+// RSA MD5签名
+export const rsaMD5PrivateSync : rsaCommonSync = function (dataString : string, keyPair : KeyPair) : string {
+	const res : string = Util.byte2HexStr(RSAUtil.signWithMD5(dataString.toByteArray(), keyPair.private))
+	return res;
+}
+
+// RSA SHA256签名验签
+export const rsaSHA256PubValSync : rsaValidate = function (dataString : string,result: string, keyPair : KeyPair) : boolean {
+	const res : boolean = RSAUtil.verifySignWithSHA256(dataString.toByteArray(),Util.hexStr2Bytes(result), keyPair.public)
+	return res;
+}
+
+// RSA MD5签名验签
+export const rsaMD5PubValSync : rsaValidate = function (dataString : string,result: string, keyPair : KeyPair) : boolean {
+	const res : boolean = RSAUtil.verifySignWithMD5(dataString.toByteArray(),Util.hexStr2Bytes(result), keyPair.public)
+	return res;
+}
+
+// AES CBC对称加密
+export const aesCBCEncryptSync : ivSync = function (dataString : string, key : string, iv: string) : string {
+	const byteContent = dataString.toByteArray();
+	const enCodeFormat = key.toByteArray();
+	const secretKeySpec = new SecretKeySpec(enCodeFormat, "AES");
+	const initParam = iv.toByteArray();
+	const ivParameterSpec = new IvParameterSpec(initParam);
+	const cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+	cipher.init(Cipher.ENCRYPT_MODE, secretKeySpec, ivParameterSpec);
+	
+	const encryptedBytes = cipher.doFinal(byteContent);
+	
+	// 同样对加密后数据进行 base64 编码
+	return Base64Util.encode(encryptedBytes);
+}
+
+// AES CBC对称解密
+export const aesCBCDecryptSync : ivSync = function (dataString : string, key : string, iv: string) : string {
+	const encryptedBytes = Base64Util.decode(dataString);
+	const enCodeFormat = key.toByteArray();
+	const secretKeySpec = new SecretKeySpec(enCodeFormat, "AES");
+	const initParam = iv.toByteArray();
+	const ivParameterSpec = new IvParameterSpec(initParam);
+	const cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+	cipher.init(Cipher.DECRYPT_MODE, secretKeySpec, ivParameterSpec);
+	
+	const result = cipher.doFinal(encryptedBytes);
+	
+	return String(result);
+}
+
+// hmacSHA1加密
+export const hmacSHA1Sync : sm4Sync = function (plaintext : string, key : string) : string {
+	const byteContent = plaintext.toByteArray();
+	const enCodeFormat = key.toByteArray();
+	const secretKeySpec = new SecretKeySpec(enCodeFormat, "HmacSHA1");
+	const mac = Mac.getInstance("HmacSHA1");
+	mac.init(secretKeySpec);
+	const hmacBytes = mac.doFinal(byteContent);
+	return Util.byte2HexStr(hmacBytes)
+}

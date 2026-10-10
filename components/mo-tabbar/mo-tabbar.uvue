@@ -1,6 +1,14 @@
 <template>
-	<up-tabbar :value="props.currentName" @change="onTabChange" fixed border placeholder
-		safeAreaInsetBottom>
+	<!-- uni-app 原生 tabBar 拥有默认高度；窗口底部仍预留该高度时补偿这个偏移。 -->
+	<up-tabbar
+		:value="props.currentName"
+		@change="onTabChange"
+		:customStyle="{ bottom: '-15px' }"
+		fixed
+		border
+		placeholder
+		safeAreaInsetBottom
+	>
 		<up-tabbar-item name="index" text="首页">
 			<template #active-icon>
 				<rice-icon name="home" size="22" color="#1989fa"></rice-icon>
@@ -67,21 +75,19 @@
 		if (name === props.currentName) {
 			return;
 		}
-		const url = pageMap.get(name);
-		if (url != null) {
-			uni.reLaunch({ url: url });
-		}
+		uni.switchTab({
+			url: pageMap.get(name) ?? "/pages/index/index"
+		})
 	}
+
+	onShow(() => {
+		// 仅 Tab 页可调；非 Tab 页会 fail（HBuilderX ≥ 4.23）
+		uni.hideTabBar({
+			animation: false
+		})
+	});
 </script>
 
 <style lang="scss">
-	.mom-tabbar-icon {
-		font-size: 20px;
-		// 默认（inactive）颜色
-		color: #7d7e80;
 
-		&.is-active {
-			color: #1989fa;
-		}
-	}
 </style>

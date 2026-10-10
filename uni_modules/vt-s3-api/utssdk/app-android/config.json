@@ -1,0 +1,6 @@
+{
+  "minSdkVersion": "21",
+  "dependencies": [
+    "com.amazonaws:aws-android-sdk-s3:2.81.1"
+  ]
+}
