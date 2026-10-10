@@ -6,7 +6,7 @@
 
 ## 演示图
 
-| ![image](docs/readme/images/index.jpg) | ![image](docs/readme/images/photo.jpg) |
-| -----------------------------------: | :----------------------------------- |
-| ![image](docs/readme/images/music.jpg) | ![image](docs/readme/images/mine.jpg) |
-| | |
+| 截图一 | 截图二 |
+| --- | --- |
+| ![首页](docs/readme/images/index.jpg) | ![相册](docs/readme/images/photo.jpg) |
+| ![音乐](docs/readme/images/music.jpg) | ![我的](docs/readme/images/mine.jpg) |
