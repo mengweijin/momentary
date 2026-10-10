@@ -3,3 +3,9 @@
 一款可以读取 OSS S3 接口的图片、音乐、视频等的移动端应用，可作为家庭影音文件共享、播放工具软件。
 
 支持安卓，IOS, 鸿蒙。
+
+## 演示图
+
+| ![image](docs/readme/images/index.jpg) | ![image](docs/readme/images/photo.jpg) |    
+|-----------------------------------:|:-----------------------------------|
+| ![image](docs/readme/images/music.jpg) | ![image](docs/readme/images/mine.jpg) | 
